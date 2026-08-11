@@ -3,7 +3,9 @@
 > 👉 **¿Primera vez? Sigue [SETUP.md](SETUP.md): 6 pasos desde el móvil y queda todo funcionando (incluye el auto-deploy de la app).**
 
 Sistema multi-agente con memoria compartida. **Coste $0**, sin servidor, operable desde el móvil.
-Corre sobre GitHub: Actions = runtime, GitHub Models = IA gratis, archivos del repo = memoria, commits = auditoría, Issues = tareas, comentarios = handoffs.
+Corre sobre GitHub: Actions = runtime, archivos del repo = memoria, commits = auditoría, Issues = tareas, comentarios = handoffs.
+
+> ⚠️ **GitHub Models (el proveedor de IA original de este proyecto) se retiró por completo el 30 de julio de 2026.** Ya no es una opción, ni siquiera de respaldo. Necesitas **al menos uno** de `GROQ_API_KEY` (gratis en [groq.com](https://console.groq.com)) o `GEMINI_API_KEY` (gratis en [Google AI Studio](https://aistudio.google.com)) — ver paso 2 de [SETUP.md](SETUP.md). Sin uno de los dos, el sistema no tiene forma de pensar.
 
 ---
 
@@ -11,11 +13,11 @@ Corre sobre GitHub: Actions = runtime, GitHub Models = IA gratis, archivos del r
 
 1. **Crea el repo.** Sube estos archivos a un repo nuevo llamado `agent-brain`. Hazlo **público** (Actions ilimitado gratis) o privado si prefieres (gastas cuota de minutos).
 
-2. **Activa GitHub Models.** No necesitas nada: los workflows ya piden `permissions: models: read`, y el `GITHUB_TOKEN` del runner llama a la IA gratis. Sin tarjeta, sin cuenta extra.
+2. **Configura la IA (obligatorio).** Settings → Secrets and variables → Actions → *New repository secret*. Añade `GROQ_API_KEY` (gratis en groq.com) y, si quieres verificación cruzada en el tribunal, también `GEMINI_API_KEY` (gratis en Google AI Studio). Sin al menos uno de los dos, ningún agente puede pensar.
 
 3. **Permisos de Actions.** En el repo: Settings → Actions → General → *Workflow permissions* → marca **Read and write permissions**. (Deja que los agentes escriban memoria.)
 
-4. **(Opcional) Fallback.** Si quieres respaldo cuando GitHub Models se sature: Settings → Secrets → Actions, añade `GROQ_API_KEY` y/o `GEMINI_API_KEY`. Si no los pones, el sistema usa solo GitHub Models.
+4. **Etiqueta `agent`.** Issues → Labels → New label → nombre exacto `agent`. Es la señal de que un Issue es una tarea para el equipo.
 
 5. **Primera prueba.** Abre un Issue, ponle la etiqueta `agent`, título: *"Revisa por qué el total del carrito sale mal"*. El Orchestrator lo convierte en tarea y te dice qué agente lanzar.
 
@@ -75,7 +77,7 @@ Esto es lo que de verdad querías con "dos que debaten" — pero sin duplicar re
 
 **Cómo activarlo:** comenta `/tribunal TASK-0001` en el Issue de la tarea, o lánzalo a mano desde la pestaña Actions → tribunal.
 
-> La verificación cruzada solo se enciende si defines `GROQ_API_KEY` o `GEMINI_API_KEY` en los secrets. Sin eso, el tribunal funciona igual pero con un solo juez.
+> Necesitas al menos un proveedor (`GROQ_API_KEY` o `GEMINI_API_KEY`) para que el tribunal funcione. La verificación cruzada (2º par de ojos) se enciende solo si defines **los dos**; con uno solo, el tribunal funciona igual pero sin ese segundo par de ojos.
 
 ## Automatismos nocturnos y semanales
 
