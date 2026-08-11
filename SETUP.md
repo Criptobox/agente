@@ -22,6 +22,7 @@ El sistema prueba proveedores en este orden, usa el primero que tengas configura
 |---|---|---|---|
 | Groq | `GROQ_API_KEY` | [console.groq.com](https://console.groq.com) | La más rápida de sacar, límite gratis generoso. **Empieza por esta.** |
 | Gemini | `GEMINI_API_KEY` | [Google AI Studio](https://aistudio.google.com) | Segunda opción recomendada — con Groq + Gemini el tribunal ya hace verificación cruzada. |
+| Mistral | `MISTRAL_API_KEY` | [console.mistral.ai](https://console.mistral.ai) | 1.000 millones de tokens/mes gratis (sin tarjeta, solo verifica tu teléfono). Su único límite: 2 peticiones/minuto. |
 | OpenRouter | `OPENROUTER_API_KEY` | [openrouter.ai/keys](https://openrouter.ai/keys) | Pasarela a decenas de modelos; usa su router gratis (`openrouter/free`), que elige solo un modelo disponible en cada momento. |
 | Z.ai (GLM Flash) | `ZAI_API_KEY` | [z.ai](https://z.ai/model-api) | Usa GLM-4.5/4.7-Flash, gratis (~1000 peticiones/día). Si quieres más capacidad y no te importa pagar, cambia el modelo a `glm-5.2` en `src/models.js` (de pago, tier gratis ~50/día). |
 
