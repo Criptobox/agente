@@ -29,7 +29,7 @@ async function main() {
       lines.push(`- ⚠️ La IA respondió algo raro (\`${out.text.slice(0, 40)}\`), pero conecta.`);
     }
   } catch (e) {
-    lines.push(`- ❌ **La IA no respondió** (${e.message}). GitHub Models ya no existe (retirado 30-jul-2026): añade el secret \`GROQ_API_KEY\` (gratis en groq.com) o \`GEMINI_API_KEY\` en Settings → Secrets and variables → Actions.`);
+    lines.push(`- ❌ **La IA no respondió** (${e.message}). GitHub Models ya no existe (retirado 30-jul-2026): añade alguno de estos secrets en Settings → Secrets and variables → Actions: \`GROQ_API_KEY\` (groq.com), \`GEMINI_API_KEY\`, \`OPENROUTER_API_KEY\` (openrouter.ai) o \`ZAI_API_KEY\` (z.ai).`);
   }
 
   // 2. ¿Hay un segundo proveedor para la verificación cruzada del tribunal?
@@ -37,9 +37,9 @@ async function main() {
   if (provs.length >= 2) {
     lines.push(`- ✅ **Verificación cruzada disponible**: ${provs.length} modelos (${provs.join(", ")}). El tribunal tendrá segundo par de ojos.`);
   } else if (provs.length === 1) {
-    lines.push(`- ℹ️ Solo hay 1 modelo (\`${provs[0]}\`). Para la verificación cruzada del tribunal (2º par de ojos), añade también el otro secret (\`GROQ_API_KEY\` o \`GEMINI_API_KEY\`).`);
+    lines.push(`- ℹ️ Solo hay 1 modelo (\`${provs[0]}\`). Para la verificación cruzada del tribunal (2º par de ojos), añade otro secret más (\`GROQ_API_KEY\`, \`GEMINI_API_KEY\`, \`OPENROUTER_API_KEY\` o \`ZAI_API_KEY\`).`);
   } else {
-    lines.push(`- ❌ **Ningún proveedor configurado.** El sistema no puede pensar sin al menos uno. Añade \`GROQ_API_KEY\` o \`GEMINI_API_KEY\`.`);
+    lines.push(`- ❌ **Ningún proveedor configurado.** El sistema no puede pensar sin al menos uno. Añade \`GROQ_API_KEY\`, \`GEMINI_API_KEY\`, \`OPENROUTER_API_KEY\` o \`ZAI_API_KEY\`.`);
   }
 
   fs.writeFileSync("doctor_ai.md", lines.join("\n"));

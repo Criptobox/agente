@@ -16,9 +16,18 @@ Sigue esto en orden. Son 7 pasos, una sola vez. Al final tienes la app instalada
 ## 2. Configura la IA (obligatorio)
 > ⚠️ GitHub Models —el proveedor de IA con el que se diseñó este proyecto— se retiró por completo el 30 de julio de 2026. Ya no existe, ni como principal ni como respaldo. Sin este paso, ningún agente puede pensar.
 
-- Consigue una clave gratis en **[console.groq.com](https://console.groq.com)** (`GROQ_API_KEY`). Es la más rápida de sacar y tiene límite gratis generoso.
-- (Recomendado) Consigue también una clave gratis en **[Google AI Studio](https://aistudio.google.com)** (`GEMINI_API_KEY`) — con las dos, el modo tribunal puede hacer verificación cruzada (dos modelos, dos arquitecturas).
-- En el repo: **Settings → Secrets and variables → Actions → New repository secret**. Crea `GROQ_API_KEY` (y opcionalmente `GEMINI_API_KEY`) con el valor de tu clave.
+El sistema prueba proveedores en este orden, usa el primero que tengas configurado (y salta al siguiente si uno falla o se satura):
+
+| Proveedor | Secret | Consíguela en | Notas |
+|---|---|---|---|
+| Groq | `GROQ_API_KEY` | [console.groq.com](https://console.groq.com) | La más rápida de sacar, límite gratis generoso. **Empieza por esta.** |
+| Gemini | `GEMINI_API_KEY` | [Google AI Studio](https://aistudio.google.com) | Segunda opción recomendada — con Groq + Gemini el tribunal ya hace verificación cruzada. |
+| OpenRouter | `OPENROUTER_API_KEY` | [openrouter.ai/keys](https://openrouter.ai/keys) | Pasarela a decenas de modelos; usa su router gratis (`openrouter/free`), que elige solo un modelo disponible en cada momento. |
+| Z.ai (GLM) | `ZAI_API_KEY` | [z.ai](https://z.ai/model-api) | GLM-4.5/4.7 Flash gratis. Si falla con "modelo no encontrado", el ID puede haber cambiado — revisa `src/models.js`. |
+
+Con **uno solo** ya funciona todo. Cuantos más tengas, más resistente es el sistema a que un proveedor se sature o cambie su catálogo.
+
+- En el repo: **Settings → Secrets and variables → Actions → New repository secret**. Crea el/los secret(s) con el nombre exacto de la tabla y el valor de tu clave.
 
 ---
 

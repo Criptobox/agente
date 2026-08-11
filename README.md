@@ -5,7 +5,7 @@
 Sistema multi-agente con memoria compartida. **Coste $0**, sin servidor, operable desde el móvil.
 Corre sobre GitHub: Actions = runtime, archivos del repo = memoria, commits = auditoría, Issues = tareas, comentarios = handoffs.
 
-> ⚠️ **GitHub Models (el proveedor de IA original de este proyecto) se retiró por completo el 30 de julio de 2026.** Ya no es una opción, ni siquiera de respaldo. Necesitas **al menos uno** de `GROQ_API_KEY` (gratis en [groq.com](https://console.groq.com)) o `GEMINI_API_KEY` (gratis en [Google AI Studio](https://aistudio.google.com)) — ver paso 2 de [SETUP.md](SETUP.md). Sin uno de los dos, el sistema no tiene forma de pensar.
+> ⚠️ **GitHub Models (el proveedor de IA original de este proyecto) se retiró por completo el 30 de julio de 2026.** Ya no es una opción, ni siquiera de respaldo. Necesitas **al menos uno** de estos secrets — ver paso 2 de [SETUP.md](SETUP.md). Sin ninguno, el sistema no tiene forma de pensar.
 
 ---
 
@@ -77,7 +77,7 @@ Esto es lo que de verdad querías con "dos que debaten" — pero sin duplicar re
 
 **Cómo activarlo:** comenta `/tribunal TASK-0001` en el Issue de la tarea, o lánzalo a mano desde la pestaña Actions → tribunal.
 
-> Necesitas al menos un proveedor (`GROQ_API_KEY` o `GEMINI_API_KEY`) para que el tribunal funcione. La verificación cruzada (2º par de ojos) se enciende solo si defines **los dos**; con uno solo, el tribunal funciona igual pero sin ese segundo par de ojos.
+> Necesitas al menos un proveedor configurado para que el tribunal funcione. La verificación cruzada (2º par de ojos) se enciende sola en cuanto haya **dos o más** proveedores configurados; con uno solo, el tribunal funciona igual pero sin ese segundo par de ojos.
 
 ## Automatismos nocturnos y semanales
 
