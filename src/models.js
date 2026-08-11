@@ -23,6 +23,22 @@ async function fetchWithTimeout(url, opts) {
   }
 }
 
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
+// Ante un 429, Groq (y otros) suelen decir exactamente cuánto esperar
+// ("Please try again in 6.3s" o el header Retry-After). Antes de esto se
+// saltaba directo al siguiente proveedor sin intentar esperar ese ratito,
+// perdiendo la llamada aunque el límite fuera a liberarse en segundos.
+// Tope de 15s para no comerse el timeout completo por un solo reintento.
+function retryDelayMs(res, bodyText) {
+  const header = res.headers?.get?.("retry-after");
+  const n = header ? Number(header) : NaN;
+  if (!Number.isNaN(n)) return Math.min(Math.max(n, 0), 15) * 1000;
+  const m = bodyText.match(/try again in ([\d.]+)s/i);
+  if (m) return Math.min(parseFloat(m[1]), 15) * 1000;
+  return null; // sin pista clara -> no reintentamos, pasamos al siguiente proveedor
+}
+
 const PROVIDERS = [
   // Groq: gratis con límites generosos, la opción a configurar primero.
   // llama-3.1-8b-instant/llama-3.3-70b-versatile (los IDs que usaba este
@@ -67,26 +83,32 @@ export async function chat(messages, { tier = "cheap", temperature = 0.2, max_to
     const key = p.key();
     if (!key) continue; // proveedor no configurado -> saltar
     const model = p.models[tier] || p.models.cheap;
-    try {
-      const body = { model, messages, temperature, max_tokens, ...(p.extraBody || {}) };
-      if (json) body.response_format = { type: "json_object" };
-      if (tools && tools.length) body.tools = tools;
-      const res = await fetchWithTimeout(p.url, { method: "POST", headers: p.headers(key), body: JSON.stringify(body) });
-      if (!res.ok) {
-        lastErr = new Error(`${p.name} ${res.status}: ${(await res.text()).slice(0, 300)}`);
-        // 429 = rate limit, o "tools" no soportado -> probar siguiente proveedor.
-        continue;
+    for (let attempt = 0; attempt < 2; attempt++) {
+      try {
+        const body = { model, messages, temperature, max_tokens, ...(p.extraBody || {}) };
+        if (json) body.response_format = { type: "json_object" };
+        if (tools && tools.length) body.tools = tools;
+        const res = await fetchWithTimeout(p.url, { method: "POST", headers: p.headers(key), body: JSON.stringify(body) });
+        if (!res.ok) {
+          const bodyText = (await res.text()).slice(0, 300);
+          lastErr = new Error(`${p.name} ${res.status}: ${bodyText}`);
+          if (res.status === 429 && attempt === 0) {
+            const wait = retryDelayMs(res, bodyText);
+            if (wait != null) { await sleep(wait); continue; } // reintenta el MISMO proveedor una vez
+          }
+          break; // sin pista de espera, o ya reintentado -> probar siguiente proveedor
+        }
+        const data = await res.json();
+        const msg = data?.choices?.[0]?.message || {};
+        return {
+          text: msg.content ?? "",
+          tool_calls: msg.tool_calls || null,
+          provider: p.name, model, usage: data?.usage || null,
+        };
+      } catch (e) {
+        lastErr = e;
+        break;
       }
-      const data = await res.json();
-      const msg = data?.choices?.[0]?.message || {};
-      return {
-        text: msg.content ?? "",
-        tool_calls: msg.tool_calls || null,
-        provider: p.name, model, usage: data?.usage || null,
-      };
-    } catch (e) {
-      lastErr = e;
-      continue;
     }
   }
   throw new Error(`Todos los proveedores fallaron. Último error: ${lastErr?.message || "desconocido"}`);
@@ -106,14 +128,23 @@ export async function chatExcluding(exclude, messages, { tier = "strong", temper
     const key = p.key();
     if (!key) continue;
     const model = p.models[tier] || p.models.cheap;
-    try {
-      const body = { model, messages, temperature, max_tokens, ...(p.extraBody || {}) };
-      if (json) body.response_format = { type: "json_object" };
-      const res = await fetchWithTimeout(p.url, { method: "POST", headers: p.headers(key), body: JSON.stringify(body) });
-      if (!res.ok) continue;
-      const data = await res.json();
-      return { text: data?.choices?.[0]?.message?.content ?? "", provider: p.name, model };
-    } catch { continue; }
+    for (let attempt = 0; attempt < 2; attempt++) {
+      try {
+        const body = { model, messages, temperature, max_tokens, ...(p.extraBody || {}) };
+        if (json) body.response_format = { type: "json_object" };
+        const res = await fetchWithTimeout(p.url, { method: "POST", headers: p.headers(key), body: JSON.stringify(body) });
+        if (!res.ok) {
+          if (res.status === 429 && attempt === 0) {
+            const bodyText = await res.text();
+            const wait = retryDelayMs(res, bodyText);
+            if (wait != null) { await sleep(wait); continue; }
+          }
+          break;
+        }
+        const data = await res.json();
+        return { text: data?.choices?.[0]?.message?.content ?? "", provider: p.name, model };
+      } catch { break; }
+    }
   }
   return null; // no hay segundo proveedor disponible
 }
