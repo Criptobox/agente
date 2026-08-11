@@ -8,10 +8,138 @@
     "project": "tiendamax"
   },
   {
+    "id": "BUG-101",
+    "type": "error",
+    "title": "terser renombró funciones y rompió el event delegation window[fn]",
+    "confidence": 96,
+    "stale": false,
+    "project": "tiendamax"
+  },
+  {
+    "id": "BUG-102",
+    "type": "error",
+    "title": "Race condition en la suscripción push en conexiones lentas",
+    "confidence": 90,
+    "stale": false,
+    "project": "tiendamax"
+  },
+  {
+    "id": "BUG-201",
+    "type": "error",
+    "title": "Bypass de autenticación con la tecla Escape en el panel admin",
+    "confidence": 95,
+    "stale": false,
+    "project": "axontech"
+  },
+  {
+    "id": "BUG-202",
+    "type": "error",
+    "title": "Escritura en Firebase sobrescribía los vales de todos los gestores",
+    "confidence": 95,
+    "stale": false,
+    "project": "axontech"
+  },
+  {
+    "id": "BUG-203",
+    "type": "error",
+    "title": "Un PAT de GitHub se transmitía a través de Firebase",
+    "confidence": 97,
+    "stale": false,
+    "project": "axontech"
+  },
+  {
+    "id": "DEC-001",
+    "type": "decision",
+    "title": "Firebase Realtime Database como backend de ambos proyectos",
+    "confidence": 90,
+    "stale": false,
+    "project": null
+  },
+  {
+    "id": "DEC-002",
+    "type": "decision",
+    "title": "Hosting estático en GitHub Pages, flujo 100% mobile",
+    "confidence": 92,
+    "stale": false,
+    "project": null
+  },
+  {
+    "id": "DEC-003",
+    "type": "decision",
+    "title": "Sistema de diseño \"TiendaMax Oficial Plus",
+    "confidence": 88,
+    "stale": false,
+    "project": null
+  },
+  {
+    "id": "FACT-001",
+    "type": "fact",
+    "title": "Las llamadas a datos usan _tmFetch(), no fetch() directo (lleva cache-busting).",
+    "confidence": 95,
+    "stale": false,
+    "project": "tiendamax"
+  },
+  {
+    "id": "FACT-002",
+    "type": "fact",
+    "title": "El mensaje de pedido de WhatsApp está en 3 funciones distintas; cambiar una obliga a revisar las tres.",
+    "confidence": 90,
+    "stale": false,
+    "project": "tiendamax"
+  },
+  {
     "id": "LESSON-001",
     "type": "lesson",
     "title": "",
     "confidence": 85,
+    "stale": false,
+    "project": null
+  },
+  {
+    "id": "LESSON-101",
+    "type": "lesson",
+    "title": "",
+    "confidence": 96,
+    "stale": false,
+    "project": null
+  },
+  {
+    "id": "LESSON-102",
+    "type": "lesson",
+    "title": "",
+    "confidence": 92,
+    "stale": false,
+    "project": null
+  },
+  {
+    "id": "LESSON-201",
+    "type": "lesson",
+    "title": "",
+    "confidence": 95,
+    "stale": false,
+    "project": null
+  },
+  {
+    "id": "LESSON-202",
+    "type": "lesson",
+    "title": "",
+    "confidence": 95,
+    "stale": false,
+    "project": null
+  },
+  {
+    "id": "LESSON-203",
+    "type": "lesson",
+    "title": "",
+    "confidence": 98,
+    "stale": false,
+    "project": null
+  },
+  {
+    "id": "PROJ-axontech",
+    "type": "project",
+    "title": "",
+    "confidence": null,
     "stale": false,
     "project": null
   },

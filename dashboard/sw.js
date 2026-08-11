@@ -30,7 +30,22 @@ self.addEventListener("message", (e) => {
 
 self.addEventListener("fetch", (e) => {
   const url = new URL(e.request.url);
+  const isFont = url.hostname.includes("fonts.googleapis.com") || url.hostname.includes("fonts.gstatic.com");
   const isData = url.hostname.includes("githubusercontent.com") || url.hostname.includes("api.github.com");
+
+  if (isFont) {
+    // Fuentes: cache-first (no cambian). Tras la 1ª carga, instantáneo y offline.
+    e.respondWith(
+      caches.match(e.request).then((hit) =>
+        hit || fetch(e.request).then((res) => {
+          const copy = res.clone();
+          caches.open(VERSION).then((c) => c.put(e.request, copy));
+          return res;
+        }).catch(() => hit)
+      )
+    );
+    return;
+  }
 
   if (isData) {
     // network-first: datos frescos si hay señal; si no, lo último que vimos.
