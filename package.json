@@ -1,0 +1,11 @@
+{
+  "name": "agent-brain",
+  "version": "0.1.0",
+  "description": "Sistema multi-agente con memoria compartida sobre GitHub, coste cero",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "agent": "node src/runner.js",
+    "orchestrate": "node src/orchestrate.js"
+  }
+}

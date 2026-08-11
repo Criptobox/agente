@@ -1,0 +1,17 @@
+{
+  "id": "TASK-0001",
+  "issue": 1,
+  "goal": "Revisar por qué el checkout de TiendaMax a veces muestra total incorrecto",
+  "status": "queued",
+  "assigned": "code",
+  "continues_from": ["BUG-001"],
+  "definition_of_done": [
+    { "id": "G1", "check": "El total mostrado coincide con la suma real de líneas", "method": "assertion", "expect": "exit_code==0" },
+    { "id": "G2", "check": "Sin regresiones en el carrito", "method": "test", "expect": "0 failing" },
+    { "id": "G3", "check": "El total es correcto tras recargar la página (rehidratación)", "method": "assertion", "expect": "exit_code==0" }
+  ],
+  "budget": { "max_attempts": 5, "max_minutes": 25, "max_tokens": 120000 },
+  "autonomy": "assisted",
+  "handoffs": [],
+  "created": "2026-08-10T14:00:00Z"
+}

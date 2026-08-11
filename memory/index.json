@@ -1,0 +1,26 @@
+[
+  {
+    "id": "BUG-001",
+    "type": "error",
+    "title": "calculateTotal devuelve NaN al eliminar producto",
+    "confidence": 98,
+    "stale": false,
+    "project": "tiendamax"
+  },
+  {
+    "id": "LESSON-001",
+    "type": "lesson",
+    "title": "",
+    "confidence": 85,
+    "stale": false,
+    "project": null
+  },
+  {
+    "id": "PROJ-tiendamax",
+    "type": "project",
+    "title": "",
+    "confidence": null,
+    "stale": false,
+    "project": null
+  }
+]
