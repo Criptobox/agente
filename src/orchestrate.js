@@ -37,8 +37,37 @@ function nextTaskId() {
   return "TASK-" + String(n).padStart(4, "0");
 }
 
+// orchestrator.yml se dispara con "opened" Y "labeled": si alguien añade
+// CUALQUIER etiqueta después de "agent" (una etiqueta no relacionada, por
+// ejemplo), el workflow vuelve a correr para el mismo Issue. Con un ID
+// contando archivos (nextTaskId), eso creaba una tarea duplicada cada vez
+// -y si dos Issues se abrían casi a la vez, hasta el mismo ID para ambos-.
+// Un ID derivado del número de Issue es determinista y gratis: mismo Issue
+// -> siempre el mismo TASK-XXXX, sin importar cuántas veces se dispare.
+function taskIdFor(issueNum) {
+  const n = Number(issueNum);
+  return n ? "TASK-" + String(n).padStart(4, "0") : nextTaskId();
+}
+
 async function main() {
   const goal = `${title}. ${body}`.trim();
+  const id = taskIdFor(issue);
+
+  // Ya existe una tarea para este Issue (relabel, evento repetido, etc.):
+  // no la recreamos ni le pisamos el progreso ya hecho por los agentes.
+  const taskFile = `tasks/${id}.json`;
+  if (fs.existsSync(taskFile)) {
+    const existing = JSON.parse(fs.readFileSync(taskFile, "utf8"));
+    const summary = [
+      `### 🧠 Orchestrator — ${id} ya existía`,
+      `Esta tarea ya se había creado (estado: **${existing.status}**, agente asignado: **${existing.assigned}**). No repito el plan para no perder lo avanzado.`,
+      existing.handoffs?.length ? `Handoffs hasta ahora: ${existing.handoffs.length}.` : `Aún sin handoffs.`,
+    ].join("\n");
+    fs.writeFileSync("orch_output.md", summary);
+    console.log(summary);
+    return;
+  }
+
   const project = detectProject(goal);
 
   // 1. Consultar memoria ANTES de crear trabajo.
@@ -71,7 +100,6 @@ Responde SOLO con JSON:
     plan = { continues_from: [], gates: [], first_agent: "code", plan_summary: "No pude planificar automáticamente; asigno Code Agent para un primer análisis." };
   }
 
-  const id = nextTaskId();
   const task = {
     id, issue: Number(issue) || null, goal, project,
     status: "queued",
