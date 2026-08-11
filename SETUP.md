@@ -5,7 +5,7 @@ Sigue esto en orden. Son 7 pasos, una sola vez. Al final tienes la app instalada
 ---
 
 ## 1. Sube el repo a GitHub
-- Crea un repositorio **público** llamado `agent-brain` en tu cuenta (Criptobox).
+- Crea un repositorio **público** en tu cuenta (Criptobox). El nombre es cosa tuya — este mismo repo se llama `agente`; si usas otro nombre, en el paso 6 tendrás que decírselo a la app.
 - Sube todos estos archivos (desde la web de GitHub: *Add file → Upload files*, arrastra el contenido del zip).
 - Rama por defecto: `main`.
 
@@ -52,8 +52,9 @@ A partir de ahora, cada vez que cambies algo en `dashboard/`, el workflow **page
 
 Cuando termine (1–2 min), tu app estará en:
 ```
-https://criptobox.github.io/agent-brain/
+https://criptobox.github.io/agente/
 ```
+(cambia `agente` por el nombre real de tu repo si usaste otro)
 
 ---
 
@@ -68,11 +69,11 @@ Es la señal de que un Issue es una tarea para el equipo.
 ---
 
 ## 6. Instala la app en tu teléfono
-- Abre `https://criptobox.github.io/agent-brain/` en el navegador.
+- Abre `https://criptobox.github.io/agente/` en el navegador (sin `/dashboard/` al final — esa carpeta ya es la raíz del sitio).
 - **Android/Chrome**: botón "⬇ Instalar app" o menú ⋮ → *Instalar aplicación*.
 - **iPhone/Safari**: botón Compartir → *Añadir a pantalla de inicio*.
 - Ábrela desde el icono coral. Se abre a pantalla completa, como una app.
-- La primera vez, toca ⚙︎ y confirma **owner** = `Criptobox` y **repo** = `agent-brain`.
+- La primera vez, toca ⚙︎ y confirma **owner** = `Criptobox` y **repo** = `agente` (o el nombre real de tu repo, si usaste otro — sin esto la app no puede leer tu memoria ni tareas).
 
 ---
 

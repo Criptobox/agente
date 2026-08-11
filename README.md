@@ -11,7 +11,7 @@ Corre sobre GitHub: Actions = runtime, archivos del repo = memoria, commits = au
 
 ## Puesta en marcha (desde el móvil, 5 pasos)
 
-1. **Crea el repo.** Sube estos archivos a un repo nuevo llamado `agent-brain`. Hazlo **público** (Actions ilimitado gratis) o privado si prefieres (gastas cuota de minutos).
+1. **Crea el repo.** Sube estos archivos a un repo nuevo (el nombre es cosa tuya — este mismo repo, por ejemplo, se llama `agente`). Hazlo **público** (Actions ilimitado gratis) o privado si prefieres (gastas cuota de minutos). Sea cual sea el nombre que elijas, confírmalo luego en la app (⚙︎ → repo) — el dashboard viene configurado por defecto para `agente`.
 
 2. **Configura la IA (obligatorio).** Settings → Secrets and variables → Actions → *New repository secret*. Añade `GROQ_API_KEY` (gratis en groq.com) y, si quieres verificación cruzada en el tribunal, también `GEMINI_API_KEY` (gratis en Google AI Studio). Sin al menos uno de los dos, ningún agente puede pensar.
 
@@ -152,13 +152,13 @@ Todo lo demás es andamiaje.
 
 El panel `dashboard/` es una PWA instalable. Se lee tu repo **sin meter ningún token en el código** (por defecto). Pasos, todo desde el móvil:
 
-1. **Activa GitHub Pages**: Settings → Pages → Source: *Deploy from a branch* → rama `main`, carpeta `/ (root)` → Save.
-2. Espera 1-2 min y abre en el navegador: `https://TU_USUARIO.github.io/agent-brain/dashboard/`
+1. **Activa GitHub Pages**: Settings → Pages → Source: **GitHub Actions** (NO "Deploy from a branch" — el workflow `pages.yml` de este repo ya se encarga del despliegue).
+2. Espera 1-2 min y abre en el navegador: `https://TU_USUARIO.github.io/TU_REPO/` (sin `/dashboard/` al final: esa carpeta ya es la raíz del sitio publicado).
 3. **Instálala**:
    - **Android/Chrome**: aparecerá el botón "⬇ Instalar app", o menú ⋮ → "Instalar aplicación".
    - **iPhone/Safari**: botón Compartir → "Añadir a pantalla de inicio".
 4. Ábrela desde el icono. Ya la tienes como app, con su icono coral.
-5. La primera vez, toca ⚙︎ y confirma tu **owner** y **repo** (por defecto `Criptobox / agent-brain`).
+5. La primera vez, toca ⚙︎ y confirma tu **owner** y **repo** (por defecto `Criptobox / agente` — si tu repo se llama distinto, cámbialo aquí o la app no podrá leerlo).
 
 **Crea la etiqueta `agent` una vez** en el repo (Issues → Labels → New label → nombre `agent`). El botón "＋ Nueva tarea" abre GitHub con todo prellenado; tú solo pulsas *Submit*. El orchestrator la recoge sola.
 

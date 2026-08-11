@@ -234,7 +234,7 @@
   <label>Dueño (GitHub owner)</label>
   <input id="cfgOwner" placeholder="Criptobox">
   <label>Repositorio</label>
-  <input id="cfgRepo" placeholder="agent-brain">
+  <input id="cfgRepo" placeholder="agente">
   <label>Rama</label>
   <input id="cfgBranch" placeholder="main">
   <label>Token opcional · solo en este teléfono</label>
@@ -265,7 +265,7 @@
 </dialog>
 
 <script>
-const DEFAULTS={owner:"Criptobox",repo:"agent-brain",branch:"main",token:""};
+const DEFAULTS={owner:"Criptobox",repo:"agente",branch:"main",token:""};
 const cfg=Object.assign({},DEFAULTS,JSON.parse(localStorage.getItem("brainCfg")||"{}"));
 const raw=(p)=>`https://raw.githubusercontent.com/${cfg.owner}/${cfg.repo}/${cfg.branch}/${p}`;
 const api=(p)=>`https://api.github.com/repos/${cfg.owner}/${cfg.repo}/${p}`;
