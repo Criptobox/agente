@@ -1,0 +1,57 @@
+name: sandbox-breaker
+# Levanta una COPIA de tu web dentro del runner y corre el Breaker contra ella.
+# NUNCA toca producción. Firebase debe apuntar a un proyecto de PRUEBA.
+on:
+  workflow_dispatch:
+    inputs:
+      repo:    { description: "repo del proyecto a probar (ej: Criptobox/TiendaMax)", required: true }
+      task_id: { description: "id de la tarea", required: true }
+      issue:   { description: "número del issue (opcional)", required: false }
+
+permissions:
+  contents: write
+  issues:   write
+  models:   read
+
+jobs:
+  break:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout del cerebro
+        uses: actions/checkout@v4
+
+      - name: Checkout del proyecto a probar (en ./target)
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ inputs.repo }}
+          path: target
+
+      - uses: actions/setup-node@v4
+        with: { node-version: '20' }
+
+      - name: Servir la web estática (copia efímera)
+        run: |
+          npx --yes http-server ./target -p 8080 &
+          sleep 3
+          curl -s -o /dev/null -w "sandbox arriba: %{http_code}\n" http://localhost:8080 || true
+
+      - name: Correr el Breaker contra la copia
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          AGENT: breaker
+          TASK_ID: ${{ inputs.task_id }}
+          SANDBOX_URL: http://localhost:8080
+        run: node src/runner.js
+
+      - name: Comentar resultado
+        if: ${{ inputs.issue != '' }}
+        env: { GH_TOKEN: "${{ secrets.GITHUB_TOKEN }}" }
+        run: gh issue comment "${{ inputs.issue }}" --body-file agent_output.md
+
+      - name: Guardar hallazgos en git
+        run: |
+          git config user.name  "agent-breaker"
+          git config user.email "agent@bot.local"
+          git add memory/ tasks/
+          git diff --staged --quiet || git commit -m "breaker: ${{ inputs.task_id }}"
+          git push

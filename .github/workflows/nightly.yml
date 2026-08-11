@@ -1,0 +1,47 @@
+name: nightly
+# Corre cada noche: reloj de decaimiento + diario. Ajusta la hora (UTC) a tu gusto.
+on:
+  schedule:
+    - cron: '0 5 * * *'   # 05:00 UTC ~ medianoche/1am Cuba
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+  issues:   write
+  models:   read
+
+jobs:
+  nightly:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: '20' }
+
+      - name: Reloj de decaimiento + index.json
+        run: node src/decay.js
+
+      - name: Diario nocturno
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          AGENT: diarist
+          TASK_ID: __nightly__
+        run: node src/diary.js
+
+      - name: Guardar en git
+        run: |
+          git config user.name  "nightly"
+          git config user.email "agent@bot.local"
+          git add memory/ 
+          git diff --staged --quiet || git commit -m "nightly: decay + index $(date -u +%F)"
+          git push
+
+      - name: Publicar diario (busca un issue con label 'diario' o crea uno)
+        env: { GH_TOKEN: "${{ secrets.GITHUB_TOKEN }}" }
+        run: |
+          NUM=$(gh issue list --label diario --state open --limit 1 --json number -q '.[0].number' || echo "")
+          if [ -z "$NUM" ]; then
+            gh issue create --title "📓 Diario del sistema" --label diario --body-file diary_output.md
+          else
+            gh issue comment "$NUM" --body-file diary_output.md
+          fi

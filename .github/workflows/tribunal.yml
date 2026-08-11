@@ -1,0 +1,58 @@
+name: tribunal
+# Modo tribunal: defensor vs fiscal, el juez decide sobre pruebas, segundo modelo verifica.
+# Se activa a mano sobre una tarea que YA tiene solución propuesta, o al comentar "/tribunal" en el Issue.
+on:
+  workflow_dispatch:
+    inputs:
+      task_id:
+        description: 'ID de la tarea a juzgar (ej: TASK-0001)'
+        required: true
+  issue_comment:
+    types: [created]
+
+permissions:
+  contents: write
+  issues: write
+  models: read
+
+jobs:
+  tribunal:
+    # Corre si es dispatch manual, o si alguien comentó "/tribunal" en un Issue.
+    if: ${{ github.event_name == 'workflow_dispatch' || startsWith(github.event.comment.body, '/tribunal') }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: '20' }
+
+      - name: Resolver TASK_ID
+        id: t
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "task_id=${{ github.event.inputs.task_id }}" >> $GITHUB_OUTPUT
+          else
+            # "/tribunal TASK-0001" -> extrae el segundo token
+            TID=$(echo "${{ github.event.comment.body }}" | awk '{print $2}')
+            echo "task_id=$TID" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Celebrar juicio
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          TASK_ID: ${{ steps.t.outputs.task_id }}
+        run: node src/tribunal.js
+
+      - name: Guardar veredicto
+        run: |
+          git config user.name "tribunal"
+          git config user.email "agent@bot.local"
+          git add tasks/
+          git diff --staged --quiet || git commit -m "tribunal: veredicto ${{ steps.t.outputs.task_id }}"
+          git push
+
+      - name: Publicar veredicto en el Issue
+        if: ${{ github.event_name == 'issue_comment' }}
+        env: { GH_TOKEN: "${{ secrets.GITHUB_TOKEN }}" }
+        run: gh issue comment ${{ github.event.issue.number }} --body-file tribunal_output.md

@@ -1,0 +1,44 @@
+name: agent-run
+on:
+  workflow_dispatch:
+    inputs:
+      agent:   { description: "agente a ejecutar", required: true }
+      task_id: { description: "id de la tarea (TASK-XXXX)", required: true }
+      issue:   { description: "número del issue para comentar (opcional)", required: false }
+
+permissions:
+  contents: write     # escribir memoria y hacer commit
+  issues:   write     # comentar el handoff en el issue
+  models:   read      # <-- acceso GRATIS a inferencia (GitHub Models)
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: '20' }
+
+      - name: Ejecutar agente
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          AGENT:   ${{ inputs.agent }}
+          TASK_ID: ${{ inputs.task_id }}
+          # Opcionales (fallback). Deja vacíos si no los usas:
+          GROQ_API_KEY:   ${{ secrets.GROQ_API_KEY }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+        run: node src/runner.js
+
+      - name: Comentar handoff en el issue
+        if: ${{ inputs.issue != '' }}
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh issue comment "${{ inputs.issue }}" --body-file agent_output.md
+
+      - name: Guardar memoria en git
+        run: |
+          git config user.name  "agent-${{ inputs.agent }}"
+          git config user.email "agent@bot.local"
+          git add memory/ tasks/
+          git diff --staged --quiet || git commit -m "mem: ${{ inputs.task_id }} por ${{ inputs.agent }}"
+          git push

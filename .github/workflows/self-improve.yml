@@ -1,0 +1,36 @@
+name: self-improve
+on:
+  schedule:
+    - cron: '0 6 * * 1'   # lunes 06:00 UTC
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+  pull-requests: write
+  models: read
+
+jobs:
+  improve:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: '20' }
+      - name: Analizar historial y proponer mejora
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          AGENT: selfimprove
+          TASK_ID: __weekly__
+        run: node src/selfimprove.js
+      - name: Abrir PR si hay propuesta
+        if: ${{ hashFiles('improve_patch.md') != '' }}
+        env: { GH_TOKEN: "${{ secrets.GITHUB_TOKEN }}" }
+        run: |
+          BRANCH="self-improve/$(date -u +%Y%m%d)"
+          git config user.name  "self-improve"
+          git config user.email "agent@bot.local"
+          git checkout -b "$BRANCH"
+          git add agents/ memory/
+          git commit -m "propuesta de auto-mejora $(date -u +%F)" || exit 0
+          git push -u origin "$BRANCH"
+          gh pr create --title "🔧 Auto-mejora propuesta $(date -u +%F)" --body-file improve_patch.md --base main --head "$BRANCH"

@@ -1,0 +1,36 @@
+name: orchestrator
+on:
+  issues:
+    types: [opened, labeled]
+
+permissions:
+  contents: write
+  issues:   write
+  models:   read
+
+jobs:
+  plan:
+    # Solo actúa si el issue lleva la etiqueta "agent"
+    if: contains(github.event.issue.labels.*.name, 'agent')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: '20' }
+      - name: Crear tarea desde el issue
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ISSUE_TITLE: ${{ github.event.issue.title }}
+          ISSUE_BODY:  ${{ github.event.issue.body }}
+          ISSUE_NUM:   ${{ github.event.issue.number }}
+        run: node src/orchestrate.js
+      - name: Commit tarea
+        run: |
+          git config user.name  "orchestrator"
+          git config user.email "agent@bot.local"
+          git add tasks/
+          git diff --staged --quiet || git commit -m "task: nueva desde issue #${{ github.event.issue.number }}"
+          git push
+      - name: Confirmar en el issue
+        env: { GH_TOKEN: "${{ secrets.GITHUB_TOKEN }}" }
+        run: gh issue comment "${{ github.event.issue.number }}" --body-file orch_output.md
