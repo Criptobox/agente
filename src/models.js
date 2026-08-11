@@ -33,6 +33,12 @@ const PROVIDERS = [
     url: "https://api.groq.com/openai/v1/chat/completions",
     key: () => process.env.GROQ_API_KEY,
     models: { cheap: "openai/gpt-oss-20b", strong: "openai/gpt-oss-120b", code: "openai/gpt-oss-120b" },
+    // gpt-oss-20b/120b son modelos de razonamiento: por defecto gastan parte
+    // del max_tokens "pensando" antes de escribir la respuesta visible. Con
+    // reasoning_effort alto (el default) y un max_tokens ajustado, el
+    // razonamiento puede consumirlo TODO y dejar "content" vacío aunque la
+    // llamada haya sido exitosa. "low" reduce ese riesgo en cada llamada.
+    extraBody: { reasoning_effort: "low" },
     headers: (key) => ({ "Authorization": `Bearer ${key}`, "Content-Type": "application/json" }),
   },
   // Gemini: gemini-2.5-flash (el ID que usaba este archivo) se retira el
@@ -62,7 +68,7 @@ export async function chat(messages, { tier = "cheap", temperature = 0.2, max_to
     if (!key) continue; // proveedor no configurado -> saltar
     const model = p.models[tier] || p.models.cheap;
     try {
-      const body = { model, messages, temperature, max_tokens };
+      const body = { model, messages, temperature, max_tokens, ...(p.extraBody || {}) };
       if (json) body.response_format = { type: "json_object" };
       if (tools && tools.length) body.tools = tools;
       const res = await fetchWithTimeout(p.url, { method: "POST", headers: p.headers(key), body: JSON.stringify(body) });
@@ -101,7 +107,7 @@ export async function chatExcluding(exclude, messages, { tier = "strong", temper
     if (!key) continue;
     const model = p.models[tier] || p.models.cheap;
     try {
-      const body = { model, messages, temperature, max_tokens };
+      const body = { model, messages, temperature, max_tokens, ...(p.extraBody || {}) };
       if (json) body.response_format = { type: "json_object" };
       const res = await fetchWithTimeout(p.url, { method: "POST", headers: p.headers(key), body: JSON.stringify(body) });
       if (!res.ok) continue;
