@@ -4,6 +4,21 @@
 // Secundarios opcionales: solo se usan si defines las variables de entorno.
 // Regla: si un proveedor falla o borra el modelo, se pasa al siguiente sin romper el sistema.
 
+const REQUEST_TIMEOUT_MS = 55000;
+
+// fetch() sin timeout puede colgar el job de Actions (y su cuota) si un
+// proveedor no responde. AbortController lo acota; el error resultante cae
+// en el mismo camino de fallback que un 429 o un 5xx.
+async function fetchWithTimeout(url, opts) {
+  const ctrl = new AbortController();
+  const t = setTimeout(() => ctrl.abort(), REQUEST_TIMEOUT_MS);
+  try {
+    return await fetch(url, { ...opts, signal: ctrl.signal });
+  } finally {
+    clearTimeout(t);
+  }
+}
+
 const PROVIDERS = [
   {
     name: "github",
@@ -39,7 +54,11 @@ const PROVIDERS = [
 ];
 
 // tier: "cheap" | "strong" | "code"  -> el Model Router elige coste vs capacidad.
-export async function chat(messages, { tier = "cheap", temperature = 0.2, max_tokens = 2000, json = false } = {}) {
+// tools: lista de function-schemas (formato OpenAI) para tool-calling real.
+// Si un proveedor no soporta "tools" (o el modelo no lo usa), simplemente
+// responde texto y seguimos igual que antes: el tool-calling es opcional,
+// nunca un requisito para que el sistema funcione.
+export async function chat(messages, { tier = "cheap", temperature = 0.2, max_tokens = 2000, json = false, tools = null } = {}) {
   let lastErr;
   for (const p of PROVIDERS) {
     const key = p.key();
@@ -48,15 +67,20 @@ export async function chat(messages, { tier = "cheap", temperature = 0.2, max_to
     try {
       const body = { model, messages, temperature, max_tokens };
       if (json) body.response_format = { type: "json_object" };
-      const res = await fetch(p.url, { method: "POST", headers: p.headers(key), body: JSON.stringify(body) });
+      if (tools && tools.length) body.tools = tools;
+      const res = await fetchWithTimeout(p.url, { method: "POST", headers: p.headers(key), body: JSON.stringify(body) });
       if (!res.ok) {
         lastErr = new Error(`${p.name} ${res.status}: ${(await res.text()).slice(0, 300)}`);
-        // 429 = rate limit -> probar siguiente proveedor. Otros errores igual.
+        // 429 = rate limit, o "tools" no soportado -> probar siguiente proveedor.
         continue;
       }
       const data = await res.json();
-      const text = data?.choices?.[0]?.message?.content ?? "";
-      return { text, provider: p.name, model, usage: data?.usage || null };
+      const msg = data?.choices?.[0]?.message || {};
+      return {
+        text: msg.content ?? "",
+        tool_calls: msg.tool_calls || null,
+        provider: p.name, model, usage: data?.usage || null,
+      };
     } catch (e) {
       lastErr = e;
       continue;
@@ -82,7 +106,7 @@ export async function chatExcluding(exclude, messages, { tier = "strong", temper
     try {
       const body = { model, messages, temperature, max_tokens };
       if (json) body.response_format = { type: "json_object" };
-      const res = await fetch(p.url, { method: "POST", headers: p.headers(key), body: JSON.stringify(body) });
+      const res = await fetchWithTimeout(p.url, { method: "POST", headers: p.headers(key), body: JSON.stringify(body) });
       if (!res.ok) continue;
       const data = await res.json();
       return { text: data?.choices?.[0]?.message?.content ?? "", provider: p.name, model };
@@ -94,7 +118,7 @@ export async function chatExcluding(exclude, messages, { tier = "strong", temper
 // Embeddings para la búsqueda semántica (mismo token gratis de GitHub Models).
 export async function embed(text) {
   const key = process.env.GITHUB_TOKEN;
-  const res = await fetch("https://models.github.ai/inference/embeddings", {
+  const res = await fetchWithTimeout("https://models.github.ai/inference/embeddings", {
     method: "POST",
     headers: {
       "Authorization": `Bearer ${key}`,

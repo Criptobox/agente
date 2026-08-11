@@ -57,8 +57,10 @@ function main() {
       alerts.push(`🔁 ${m.id} (${m.title || ""}) tiene 60+ días. Revisa si su condición de "reconsiderar" ya se cumple.`);
     }
 
+    // lessons usan "rule" y projects usan "name" en vez de "title"/"statement";
+    // sin este fallback el dashboard mostraba esas tarjetas en blanco.
     index.push({
-      id: m.id, type: m.type, title: m.title || m.statement || "",
+      id: m.id, type: m.type, title: m.title || m.statement || m.rule || m.name || "",
       confidence: m.confidence ?? null, stale: m.stale === true, project: m.project || null,
     });
   }

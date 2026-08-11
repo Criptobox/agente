@@ -19,11 +19,27 @@ jobs:
       - uses: actions/setup-node@v4
         with: { node-version: '20' }
 
+      - name: Resolver proyecto de la tarea
+        id: proj
+        env: { TASK_ID: "${{ inputs.task_id }}" }
+        run: node src/resolve-project.js
+
+      - name: Checkout del código del proyecto (./target, solo lectura)
+        if: ${{ steps.proj.outputs.repo != '' }}
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ steps.proj.outputs.repo }}
+          path: target
+
       - name: Ejecutar agente
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           AGENT:   ${{ inputs.agent }}
           TASK_ID: ${{ inputs.task_id }}
+          # Si hubo checkout del proyecto, esto habilita las tools de lectura
+          # de código y de test real (github.read_file, testing.run).
+          PROJECT_DIR: target
+          PROJECT_META_FILE: ${{ steps.proj.outputs.meta_file }}
           # Opcionales (fallback). Deja vacíos si no los usas:
           GROQ_API_KEY:   ${{ secrets.GROQ_API_KEY }}
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
@@ -40,5 +56,14 @@ jobs:
           git config user.name  "agent-${{ inputs.agent }}"
           git config user.email "agent@bot.local"
           git add memory/ tasks/
-          git diff --staged --quiet || git commit -m "mem: ${{ inputs.task_id }} por ${{ inputs.agent }}"
-          git push
+          git diff --staged --quiet && { echo "sin cambios"; exit 0; }
+          git commit -m "mem: ${{ inputs.task_id }} por ${{ inputs.agent }}"
+          BRANCH=$(git rev-parse --abbrev-ref HEAD)
+          for i in 1 2 3 4; do
+            git push origin "HEAD:$BRANCH" && exit 0
+            echo "push rechazado (intento $i), sincronizando con origin/$BRANCH..."
+            git fetch origin "$BRANCH"
+            git rebase "origin/$BRANCH" || { echo "conflicto al rebasar, aborto"; git rebase --abort; exit 1; }
+            sleep $((i * 2))
+          done
+          echo "no se pudo publicar tras varios intentos"; exit 1

@@ -3,7 +3,7 @@
 // un repo entero al modelo. Seleccionamos SOLO lo relevante para la tarea.
 
 import fs from "node:fs";
-import { search } from "./memory.js";
+import { search, loadAll } from "./memory.js";
 
 // Carga la definición declarativa del agente (agents/<name>.md).
 export function loadAgent(name) {
@@ -33,11 +33,18 @@ export function buildContext(task) {
   const lessons = relevant.filter(m => m.type === "lesson");
   const memories = relevant.filter(m => m.type !== "lesson");
 
+  // El criterio del usuario (memory/criterio/*.md) NO pasa por el buscador
+  // léxico: se inyecta siempre, entero, en todas las tareas. Si dependiera
+  // de que las palabras de la tarea coincidan con las del criterio, casi
+  // nunca aparecería.
+  const criterio = loadAll().filter(m => m.type === "criterio");
+
   return {
     task,
     hints: { files, symbols },
     lessons,      // -> el agente DEBE declararlas antes de planificar
     memories,     // errores, decisiones, hechos relacionados
+    criterio,     // -> cómo trabaja y decide el usuario, siempre activo
   };
 }
 
@@ -55,9 +62,16 @@ export function renderContext(ctx) {
     ? ctx.memories.map(fmt).join("\n")
     : "(ninguna memoria previa relevante)";
 
+  const criterio = ctx.criterio?.length
+    ? ctx.criterio.map(c => `[${c.id}]\n${c.body.trim()}`).join("\n\n")
+    : "(sin criterio de usuario registrado en memory/criterio/)";
+
   return `TAREA: ${ctx.task.goal}
 PROYECTO: ${ctx.task.project || "-"}
 ARCHIVOS PISTA: ${ctx.hints.files.join(", ") || "-"}
+
+CRITERIO DEL USUARIO (cómo trabaja y decide — aplícalo siempre, sin que te lo repitan):
+${criterio}
 
 LECCIONES ACTIVAS (debes declararlas en pre-mortem antes de planificar):
 ${lessons}

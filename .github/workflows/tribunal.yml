@@ -17,8 +17,10 @@ permissions:
 
 jobs:
   tribunal:
-    # Corre si es dispatch manual, o si alguien comentó "/tribunal" en un Issue.
-    if: ${{ github.event_name == 'workflow_dispatch' || startsWith(github.event.comment.body, '/tribunal') }}
+    # Corre si es dispatch manual, o si alguien comentó "/tribunal" en un Issue
+    # (no en un PR: issue_comment también dispara ahí y github.event.issue.pull_request
+    # solo existe cuando el comentario es de un PR).
+    if: ${{ github.event_name == 'workflow_dispatch' || (github.event_name == 'issue_comment' && !github.event.issue.pull_request && startsWith(github.event.comment.body, '/tribunal')) }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -49,8 +51,17 @@ jobs:
           git config user.name "tribunal"
           git config user.email "agent@bot.local"
           git add tasks/
-          git diff --staged --quiet || git commit -m "tribunal: veredicto ${{ steps.t.outputs.task_id }}"
-          git push
+          git diff --staged --quiet && { echo "sin cambios"; exit 0; }
+          git commit -m "tribunal: veredicto ${{ steps.t.outputs.task_id }}"
+          BRANCH=$(git rev-parse --abbrev-ref HEAD)
+          for i in 1 2 3 4; do
+            git push origin "HEAD:$BRANCH" && exit 0
+            echo "push rechazado (intento $i), sincronizando con origin/$BRANCH..."
+            git fetch origin "$BRANCH"
+            git rebase "origin/$BRANCH" || { echo "conflicto al rebasar, aborto"; git rebase --abort; exit 1; }
+            sleep $((i * 2))
+          done
+          echo "no se pudo publicar tras varios intentos"; exit 1
 
       - name: Publicar veredicto en el Issue
         if: ${{ github.event_name == 'issue_comment' }}

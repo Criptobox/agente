@@ -7,6 +7,7 @@ import fs from "node:fs";
 import { chat } from "./models.js";
 import { loadAll } from "./memory.js";
 import { loadAgent, loadMasterPrompt } from "./context.js";
+import { safeAgentFile } from "./util.js";
 
 function allTasks() {
   if (!fs.existsSync("tasks")) return [];
@@ -48,9 +49,18 @@ async function main() {
   }
 
   // Aplicar el cambio propuesto al archivo del agente (añade la regla al final).
+  // `ch.file` lo elige el modelo: se valida que caiga dentro de agents/ antes
+  // de tocar disco, para que una propuesta rara nunca escriba fuera de ahí.
   const ch = proposal.proposed_change;
-  if (ch.file && ch.add_rule && fs.existsSync(ch.file)) {
-    fs.appendFileSync(ch.file, `\n\n## Regla aprendida (auto-mejora ${new Date().toISOString().slice(0, 10)})\n${ch.add_rule}\n`);
+  if (ch.file && ch.add_rule) {
+    try {
+      safeAgentFile(ch.file);
+      if (fs.existsSync(ch.file)) {
+        fs.appendFileSync(ch.file, `\n\n## Regla aprendida (auto-mejora ${new Date().toISOString().slice(0, 10)})\n${ch.add_rule}\n`);
+      }
+    } catch (e) {
+      console.error("Cambio propuesto rechazado:", e.message);
+    }
   }
 
   const body = [

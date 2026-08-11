@@ -41,6 +41,7 @@ jobs:
           AGENT: breaker
           TASK_ID: ${{ inputs.task_id }}
           SANDBOX_URL: http://localhost:8080
+          PROJECT_DIR: target
         run: node src/runner.js
 
       - name: Comentar resultado
@@ -53,5 +54,14 @@ jobs:
           git config user.name  "agent-breaker"
           git config user.email "agent@bot.local"
           git add memory/ tasks/
-          git diff --staged --quiet || git commit -m "breaker: ${{ inputs.task_id }}"
-          git push
+          git diff --staged --quiet && { echo "sin cambios"; exit 0; }
+          git commit -m "breaker: ${{ inputs.task_id }}"
+          BRANCH=$(git rev-parse --abbrev-ref HEAD)
+          for i in 1 2 3 4; do
+            git push origin "HEAD:$BRANCH" && exit 0
+            echo "push rechazado (intento $i), sincronizando con origin/$BRANCH..."
+            git fetch origin "$BRANCH"
+            git rebase "origin/$BRANCH" || { echo "conflicto al rebasar, aborto"; git rebase --abort; exit 1; }
+            sleep $((i * 2))
+          done
+          echo "no se pudo publicar tras varios intentos"; exit 1

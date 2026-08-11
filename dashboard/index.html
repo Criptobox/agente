@@ -336,7 +336,7 @@ async function loadMemory(){
       <div class="card ${m.stale?'stale':''}">
         <span class="conf">${m.confidence!=null?'conf '+m.confidence:''}</span>
         <span class="id">${m.id}</span> <span class="ty">${m.type}${m.stale?' · obsoleta':''}</span>
-        <h3>${esc(m.title||m.statement||'')}</h3>
+        <h3>${esc(m.title||m.statement||m.rule||m.name||'')}</h3>
       </div>`).join("")||emptyMsg("Memoria vacía","Cuando el equipo trabaje, irá aprendiendo aquí.");
   }catch(e){ box.innerHTML=errBox(e); document.getElementById("pMem").textContent="—"; }
 }
@@ -365,12 +365,14 @@ async function loadTasks(){
       const v=t.tribunal;
       const verdict=v?`<div class="verdict v-${v.verdict}">${v.verdict==="GREEN"?"🟢":"🔴"} Tribunal: <b>${v.verdict}</b>${
         v.cross_check?(v.cross_check.agrees?" · ✅ 2º modelo de acuerdo":" · ⚠️ 2º modelo discrepa"):""}</div>`:"";
+      const budgetWarn=t.budget_exceeded?`<div class="verdict v-RED">🚨 Presupuesto agotado (${
+        t.budget_exceeded.reason==='max_tokens'?'tokens':'intentos'}: ${t.budget_exceeded.attempts} intentos, ${t.budget_exceeded.usage_tokens} tokens) — revisa y decide</div>`:"";
       const issueUrl=`https://github.com/${cfg.owner}/${cfg.repo}/issues/${t.issue||''}`;
       const hot=!["verified","failed"].includes(t.status);
       return `<div class="card ${hot?'hot':''}">
-        <span class="conf">${t.assigned?'→ '+t.assigned:''}</span>
+        <span class="conf">${t.assigned?'→ '+t.assigned:''}${t.project?' · '+esc(t.project):''}</span>
         <span class="id">${t.id}</span> ${stBadge(t.status)}
-        <h3>${esc(t.goal||'')}</h3>${verdict}
+        <h3>${esc(t.goal||'')}</h3>${verdict}${budgetWarn}
         <div class="row-actions">
           <a class="btn" href="${issueUrl}" target="_blank">Ver Issue</a>
           <button class="btn ghost" onclick="tribunal('${t.id}',${t.issue||'null'})">⚖️ Tribunal</button>

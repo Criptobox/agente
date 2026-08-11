@@ -6,6 +6,11 @@
   "private": true,
   "scripts": {
     "agent": "node src/runner.js",
-    "orchestrate": "node src/orchestrate.js"
+    "orchestrate": "node src/orchestrate.js",
+    "tribunal": "node src/tribunal.js",
+    "decay": "node src/decay.js",
+    "diary": "node src/diary.js",
+    "selfimprove": "node src/selfimprove.js",
+    "doctor": "node src/doctor.js"
   }
 }

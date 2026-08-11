@@ -4,9 +4,13 @@
 
 import fs from "node:fs";
 import path from "node:path";
+import { safeId } from "./util.js";
 
 const ROOT = "memory";
-const DIRS = ["errors", "decisions", "facts", "lessons", "projects"];
+// "criterio" faltaba aquí: memory/criterio/kros.md nunca se cargaba,
+// así que el criterio del usuario nunca llegaba a los agentes pese a
+// que el README promete que "el sistema lo aplica sin que se lo repitas".
+const DIRS = ["errors", "decisions", "facts", "lessons", "projects", "criterio"];
 
 // --- Parser mínimo de frontmatter (sin dependencias) ---
 function parseFrontmatter(raw) {
@@ -73,6 +77,7 @@ export function search(query, { project = null, files = [], symbols = [], limit 
 
 // Escribe una memoria estructurada. type: error|decision|fact|lesson
 export function write(type, id, meta, body) {
+  safeId(id); // el id viene de la salida del modelo: nunca debe poder salir de memory/<dir>/
   const dir = { error: "errors", decision: "decisions", fact: "facts", lesson: "lessons" }[type];
   if (!dir) throw new Error(`tipo de memoria desconocido: ${type}`);
   const lines = ["---"];
