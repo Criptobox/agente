@@ -1,0 +1,65 @@
+name: doctor
+# Diagnóstico de un toque: dime si TODO quedó bien configurado.
+# Actions → doctor → Run workflow. Lee el resumen que sale.
+on:
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+  issues: write
+  models: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: '20' }
+
+      - name: Chequeo de IA (GitHub Models)
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+        run: node src/doctor.js || true
+
+      - name: Chequeo de permisos y etiqueta
+        env: { GH_TOKEN: "${{ secrets.GITHUB_TOKEN }}" }
+        run: |
+          echo "## 🔐 Permisos y configuración" > doctor_env.md
+
+          # ¿Puede escribir? Probamos crear y borrar una rama temporal.
+          if git push origin HEAD:refs/heads/_doctor_check 2>/dev/null; then
+            echo "- ✅ **Permiso de escritura OK**. Los agentes pueden guardar memoria y tareas." >> doctor_env.md
+            git push origin --delete _doctor_check 2>/dev/null || true
+          else
+            echo "- ❌ **Falta permiso de escritura.** Ve a Settings → Actions → General → Workflow permissions → **Read and write** → Save." >> doctor_env.md
+          fi
+
+          # ¿Existe la etiqueta 'agent'?
+          if gh label list --limit 100 2>/dev/null | grep -qiw "agent"; then
+            echo "- ✅ **Etiqueta \`agent\` existe.** El orchestrator reconocerá tus tareas." >> doctor_env.md
+          else
+            echo "- ❌ **Falta la etiqueta \`agent\`.** Créala en Issues → Labels → New label → nombre \`agent\`." >> doctor_env.md
+          fi
+
+          # ¿Existe la etiqueta 'diario' (opcional)?
+          if gh label list --limit 100 2>/dev/null | grep -qiw "diario"; then
+            echo "- ✅ Etiqueta \`diario\` existe (para el diario nocturno)." >> doctor_env.md
+          else
+            echo "- ℹ️ Etiqueta \`diario\` no existe (opcional; el diario la crea sola la primera vez)." >> doctor_env.md
+          fi
+
+      - name: Informe final
+        run: |
+          {
+            echo "# 🩺 Resultado del diagnóstico"
+            echo ""
+            cat doctor_ai.md 2>/dev/null || echo "- (sin chequeo de IA)"
+            echo ""
+            cat doctor_env.md 2>/dev/null || echo "- (sin chequeo de permisos)"
+            echo ""
+            echo "---"
+            echo "Si todo tiene ✅, ya está listo. Los ❌ te dicen exactamente qué toca arreglar."
+          } >> "$GITHUB_STEP_SUMMARY"
