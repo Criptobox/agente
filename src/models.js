@@ -67,6 +67,34 @@ const PROVIDERS = [
     models: { cheap: "gemini-3.5-flash-lite", strong: "gemini-3.6-flash", code: "gemini-3.6-flash" },
     headers: (key) => ({ "Authorization": `Bearer ${key}`, "Content-Type": "application/json" }),
   },
+  // OpenRouter: pasarela única a decenas de proveedores. "openrouter/free"
+  // es su ROUTER gratis: elige automáticamente, en cada llamada, un modelo
+  // gratis disponible AHORA MISMO que soporte lo que pidas (tool-calling,
+  // JSON). Los IDs concretos de modelos ":free" (ej. openai/gpt-oss-120b:free)
+  // rotan sin aviso -la misma trampa en la que ya caímos con GitHub Models/
+  // Groq/Gemini, ver arriba-, así que aquí es mejor dejar que OpenRouter
+  // decida en vez de fijar uno.
+  {
+    name: "openrouter",
+    url: "https://openrouter.ai/api/v1/chat/completions",
+    key: () => process.env.OPENROUTER_API_KEY,
+    models: { cheap: "openrouter/free", strong: "openrouter/free", code: "openrouter/free" },
+    headers: (key) => ({ "Authorization": `Bearer ${key}`, "Content-Type": "application/json" }),
+  },
+  // Z.ai (GLM): API propia OpenAI-compatible, con GLM-4.5-Flash/4.7-Flash
+  // gratis. OJO: no pude verificar el ID exacto del modelo contra la doc
+  // oficial (docs.z.ai) -la red de este entorno bloquea el acceso directo
+  // a ese dominio-, solo por búsqueda. Si doctor.js falla aquí con "model
+  // not found" o similar, confirma el ID vigente en https://docs.z.ai y
+  // corrígelo abajo; el resto del pipeline (endpoint, auth, formato) sí
+  // está confirmado como compatible con OpenAI, tool-calling incluido.
+  {
+    name: "zai",
+    url: "https://api.z.ai/api/paas/v4/chat/completions",
+    key: () => process.env.ZAI_API_KEY,
+    models: { cheap: "glm-4.5-flash", strong: "glm-4.7-flash", code: "glm-4.7-flash" },
+    headers: (key) => ({ "Authorization": `Bearer ${key}`, "Content-Type": "application/json" }),
+  },
 ];
 
 // tier: "cheap" | "strong" | "code"  -> el Model Router elige coste vs capacidad.
@@ -76,7 +104,7 @@ const PROVIDERS = [
 // nunca un requisito para que el sistema funcione.
 export async function chat(messages, { tier = "cheap", temperature = 0.2, max_tokens = 2000, json = false, tools = null } = {}) {
   if (availableProviders().length === 0) {
-    throw new Error("ningún proveedor de IA configurado: agrega el secret GROQ_API_KEY o GEMINI_API_KEY (GitHub Models se retiró el 30-jul-2026)");
+    throw new Error("ningún proveedor de IA configurado: agrega GROQ_API_KEY, GEMINI_API_KEY, OPENROUTER_API_KEY o ZAI_API_KEY como secret (GitHub Models se retiró el 30-jul-2026)");
   }
   let lastErr;
   for (const p of PROVIDERS) {

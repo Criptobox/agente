@@ -41,6 +41,10 @@ jobs:
           TASK_ID: ${{ inputs.task_id }}
           SANDBOX_URL: http://localhost:8080
           PROJECT_DIR: target
+          GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+          ZAI_API_KEY: ${{ secrets.ZAI_API_KEY }}
         run: node src/runner.js
 
       - name: Comentar resultado
