@@ -2,16 +2,88 @@
   "id": "TASK-0001",
   "issue": 1,
   "goal": "Revisar por qué el checkout de TiendaMax a veces muestra total incorrecto",
-  "status": "queued",
+  "status": "waiting_human",
   "assigned": "code",
-  "continues_from": ["BUG-001"],
-  "definition_of_done": [
-    { "id": "G1", "check": "El total mostrado coincide con la suma real de líneas", "method": "assertion", "expect": "exit_code==0" },
-    { "id": "G2", "check": "Sin regresiones en el carrito", "method": "test", "expect": "0 failing" },
-    { "id": "G3", "check": "El total es correcto tras recargar la página (rehidratación)", "method": "assertion", "expect": "exit_code==0" }
+  "continues_from": [
+    "BUG-001"
   ],
-  "budget": { "max_attempts": 5, "max_minutes": 25, "max_tokens": 120000 },
+  "definition_of_done": [
+    {
+      "id": "G1",
+      "check": "El total mostrado coincide con la suma real de líneas",
+      "method": "assertion",
+      "expect": "exit_code==0"
+    },
+    {
+      "id": "G2",
+      "check": "Sin regresiones en el carrito",
+      "method": "test",
+      "expect": "0 failing"
+    },
+    {
+      "id": "G3",
+      "check": "El total es correcto tras recargar la página (rehidratación)",
+      "method": "assertion",
+      "expect": "exit_code==0"
+    }
+  ],
+  "budget": {
+    "max_attempts": 5,
+    "max_minutes": 25,
+    "max_tokens": 120000
+  },
   "autonomy": "assisted",
-  "handoffs": [],
-  "created": "2026-08-10T14:00:00Z"
+  "handoffs": [
+    {
+      "agent": "code",
+      "at": "2026-08-11T19:22:40.557Z",
+      "route": "NEW",
+      "handoff": {
+        "completed": [],
+        "not_completed": [
+          "Revisar código que calcula el total en el checkout de TiendaMax para identificar por qué a veces muestra un total incorrecto."
+        ],
+        "files_touched": [],
+        "risks": [
+          "Sin acceso al código fuente, no se puede diagnosticar ni proponer corrección."
+        ],
+        "next_agent": "human",
+        "next_task": "Proveer acceso al repositorio o subir los archivos relevantes del cálculo del total."
+      },
+      "tool_calls": 1
+    }
+  ],
+  "created": "2026-08-10T14:00:00Z",
+  "last_result": {
+    "route": "NEW",
+    "premortem": [
+      "LESSON-001: Antes de sanear el tipo, verificar integridad referencial del dato."
+    ],
+    "reused_memory": [],
+    "findings": [
+      {
+        "kind": "OBSERVATION",
+        "statement": "No hay acceso al repositorio del proyecto, por lo que no se pueden inspeccionar archivos ni código fuente.",
+        "evidence": "tools:github_list_files error",
+        "confidence": 100
+      }
+    ],
+    "memory_writes": [],
+    "conflicts": [],
+    "handoff": {
+      "completed": [],
+      "not_completed": [
+        "Revisar código que calcula el total en el checkout de TiendaMax para identificar por qué a veces muestra un total incorrecto."
+      ],
+      "files_touched": [],
+      "risks": [
+        "Sin acceso al código fuente, no se puede diagnosticar ni proponer corrección."
+      ],
+      "next_agent": "human",
+      "next_task": "Proveer acceso al repositorio o subir los archivos relevantes del cálculo del total."
+    },
+    "needs_human": true
+  },
+  "attempts": 1,
+  "usage_tokens": 4184
 }
