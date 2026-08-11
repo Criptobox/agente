@@ -1,0 +1,18 @@
+{
+  "id": "TASK-0010",
+  "issue": 10,
+  "goal": "Revisate tu mismo y verifica que todo esté bien. Hazme un resumen detallado",
+  "project": null,
+  "status": "queued",
+  "assigned": "code",
+  "continues_from": [],
+  "definition_of_done": [],
+  "budget": {
+    "max_attempts": 5,
+    "max_minutes": 25,
+    "max_tokens": 120000
+  },
+  "autonomy": "assisted",
+  "handoffs": [],
+  "created": "2026-08-11T21:01:03.459Z"
+}
