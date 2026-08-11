@@ -1,6 +1,6 @@
 # 🚀 Puesta en marcha — todo desde el móvil
 
-Sigue esto en orden. Son 6 pasos, una sola vez. Al final tienes la app instalada y el equipo funcionando.
+Sigue esto en orden. Son 7 pasos, una sola vez. Al final tienes la app instalada y el equipo funcionando.
 
 ---
 
@@ -13,7 +13,16 @@ Sigue esto en orden. Son 6 pasos, una sola vez. Al final tienes la app instalada
 
 ---
 
-## 2. Da permisos de escritura a las Actions
+## 2. Configura la IA (obligatorio)
+> ⚠️ GitHub Models —el proveedor de IA con el que se diseñó este proyecto— se retiró por completo el 30 de julio de 2026. Ya no existe, ni como principal ni como respaldo. Sin este paso, ningún agente puede pensar.
+
+- Consigue una clave gratis en **[console.groq.com](https://console.groq.com)** (`GROQ_API_KEY`). Es la más rápida de sacar y tiene límite gratis generoso.
+- (Recomendado) Consigue también una clave gratis en **[Google AI Studio](https://aistudio.google.com)** (`GEMINI_API_KEY`) — con las dos, el modo tribunal puede hacer verificación cruzada (dos modelos, dos arquitecturas).
+- En el repo: **Settings → Secrets and variables → Actions → New repository secret**. Crea `GROQ_API_KEY` (y opcionalmente `GEMINI_API_KEY`) con el valor de tu clave.
+
+---
+
+## 3. Da permisos de escritura a las Actions
 Los agentes necesitan escribir en el repo (memoria, tareas, commits).
 
 - **Settings → Actions → General**
@@ -22,7 +31,7 @@ Los agentes necesitan escribir en el repo (memoria, tareas, commits).
 
 ---
 
-## 3. Enciende el auto-deploy de la app (Pages)
+## 4. Enciende el auto-deploy de la app (Pages)
 Aquí es donde la app se publica sola.
 
 - **Settings → Pages**
@@ -38,7 +47,7 @@ https://criptobox.github.io/agent-brain/
 
 ---
 
-## 4. Crea la etiqueta `agent` (una vez)
+## 5. Crea la etiqueta `agent` (una vez)
 Es la señal de que un Issue es una tarea para el equipo.
 
 - Pestaña **Issues → Labels → New label**
@@ -48,7 +57,7 @@ Es la señal de que un Issue es una tarea para el equipo.
 
 ---
 
-## 5. Instala la app en tu teléfono
+## 6. Instala la app en tu teléfono
 - Abre `https://criptobox.github.io/agent-brain/` en el navegador.
 - **Android/Chrome**: botón "⬇ Instalar app" o menú ⋮ → *Instalar aplicación*.
 - **iPhone/Safari**: botón Compartir → *Añadir a pantalla de inicio*.
@@ -57,9 +66,8 @@ Es la señal de que un Issue es una tarea para el equipo.
 
 ---
 
-## 6. (Opcional) Segundo modelo y modo "un toque"
-- **Verificación cruzada del tribunal**: en **Settings → Secrets and variables → Actions → New repository secret**, añade `GROQ_API_KEY` (gratis en groq.com) o `GEMINI_API_KEY`. Con eso, un segundo modelo revisa los veredictos.
-- **Modo un toque** en la app: en ⚙︎ puedes pegar un token *fine-grained* (permiso mínimo: Issues + Actions de este repo, caducidad corta). Se guarda **solo en tu teléfono**. Sin token todo funciona igual, pasando por GitHub.
+## 7. (Opcional) Modo "un toque"
+- En ⚙︎ puedes pegar un token *fine-grained* (permiso mínimo: Issues + Actions de este repo, caducidad corta) para crear tareas y lanzar tribunales sin salir de la app. Se guarda **solo en tu teléfono**. Sin token todo funciona igual, pasando por GitHub.
 
 ---
 
@@ -70,6 +78,9 @@ Es la señal de que un Issue es una tarea para el equipo.
 4. Vuelve a la app, pestaña **Tareas**: ahí está, con su estado.
 
 Si algo no aparece:
+- ¿El comentario del Issue dice "La IA no respondió"? Revisa el paso 2: sin `GROQ_API_KEY` o `GEMINI_API_KEY` nada piensa (GitHub Models ya no existe).
 - ¿La app dice "no pude leer el repo"? Revisa en ⚙︎ que owner/repo son correctos y el repo es **público**.
-- ¿No corre el orchestrator? Revisa que el Issue lleve la etiqueta `agent` y que diste permisos de escritura (paso 2).
-- ¿La página no despliega? Ve a **Actions → pages** y mira que el último run esté verde; si Pages no estaba en modo *GitHub Actions*, cámbialo (paso 3) y relanza.
+- ¿No corre el orchestrator? Revisa que el Issue lleve la etiqueta `agent` y que diste permisos de escritura (paso 3).
+- ¿La página no despliega? Ve a **Actions → pages** y mira que el último run esté verde; si Pages no estaba en modo *GitHub Actions*, cámbialo (paso 4) y relanza.
+
+**Diagnóstico rápido:** Actions → **doctor** → *Run workflow*. Te dice exactamente qué falta (IA, permisos, etiqueta) sin que tengas que revisar cada paso a mano.

@@ -1,8 +1,12 @@
 // src/models.js
 // MODEL ROUTER + FALLBACK.
-// Primario: GitHub Models (gratis, usa el GITHUB_TOKEN del runner con permiso models:read).
-// Secundarios opcionales: solo se usan si defines las variables de entorno.
-// Regla: si un proveedor falla o borra el modelo, se pasa al siguiente sin romper el sistema.
+// GitHub Models (el proveedor original, gratis vía GITHUB_TOKEN) se RETIRÓ
+// por completo el 30 de julio de 2026 — no es un fallo temporal, ya no
+// existe el servicio. Por eso ya no está en PROVIDERS: sin GROQ_API_KEY o
+// GEMINI_API_KEY configurados, el sistema no tiene ningún proveedor y
+// chat() falla de inmediato con un mensaje claro (mejor eso que gastar un
+// timeout completo contra un endpoint que sabemos muerto).
+// Regla: si un proveedor falla o retira el modelo, se pasa al siguiente sin romper el sistema.
 
 const REQUEST_TIMEOUT_MS = 55000;
 
@@ -20,35 +24,25 @@ async function fetchWithTimeout(url, opts) {
 }
 
 const PROVIDERS = [
-  {
-    name: "github",
-    url: "https://models.github.ai/inference/chat/completions",
-    key: () => process.env.GITHUB_TOKEN,
-    // IDs de modelo de GitHub Models. Si GitHub cambia el catálogo, edita aquí.
-    models: {
-      cheap:  "openai/gpt-4o-mini",
-      strong: "openai/gpt-4o",
-      code:   "openai/gpt-4o",
-    },
-    headers: (key) => ({
-      "Authorization": `Bearer ${key}`,
-      "Content-Type": "application/json",
-      "Accept": "application/vnd.github+json",
-    }),
-  },
-  // --- Secundarios: opcionales. Rellena los secrets si quieres usarlos. ---
+  // Groq: gratis con límites generosos, la opción a configurar primero.
+  // llama-3.1-8b-instant/llama-3.3-70b-versatile (los IDs que usaba este
+  // archivo) fueron retirados por Groq el 17-jun-2026; estos son los
+  // reemplazos vigentes recomendados por Groq (ambos con tool-calling).
   {
     name: "groq",
     url: "https://api.groq.com/openai/v1/chat/completions",
     key: () => process.env.GROQ_API_KEY,
-    models: { cheap: "llama-3.1-8b-instant", strong: "llama-3.3-70b-versatile", code: "llama-3.3-70b-versatile" },
+    models: { cheap: "openai/gpt-oss-20b", strong: "openai/gpt-oss-120b", code: "openai/gpt-oss-120b" },
     headers: (key) => ({ "Authorization": `Bearer ${key}`, "Content-Type": "application/json" }),
   },
+  // Gemini: gemini-2.5-flash (el ID que usaba este archivo) se retira el
+  // 16-oct-2026; gemini-3.6-flash / gemini-3.5-flash-lite son la
+  // generación vigente (GA) a esa fecha.
   {
     name: "gemini",
     url: "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions",
     key: () => process.env.GEMINI_API_KEY,
-    models: { cheap: "gemini-2.5-flash", strong: "gemini-2.5-flash", code: "gemini-2.5-flash" },
+    models: { cheap: "gemini-3.5-flash-lite", strong: "gemini-3.6-flash", code: "gemini-3.6-flash" },
     headers: (key) => ({ "Authorization": `Bearer ${key}`, "Content-Type": "application/json" }),
   },
 ];
@@ -59,6 +53,9 @@ const PROVIDERS = [
 // responde texto y seguimos igual que antes: el tool-calling es opcional,
 // nunca un requisito para que el sistema funcione.
 export async function chat(messages, { tier = "cheap", temperature = 0.2, max_tokens = 2000, json = false, tools = null } = {}) {
+  if (availableProviders().length === 0) {
+    throw new Error("ningún proveedor de IA configurado: agrega el secret GROQ_API_KEY o GEMINI_API_KEY (GitHub Models se retiró el 30-jul-2026)");
+  }
   let lastErr;
   for (const p of PROVIDERS) {
     const key = p.key();
@@ -113,21 +110,4 @@ export async function chatExcluding(exclude, messages, { tier = "strong", temper
     } catch { continue; }
   }
   return null; // no hay segundo proveedor disponible
-}
-
-// Embeddings para la búsqueda semántica (mismo token gratis de GitHub Models).
-export async function embed(text) {
-  const key = process.env.GITHUB_TOKEN;
-  const res = await fetchWithTimeout("https://models.github.ai/inference/embeddings", {
-    method: "POST",
-    headers: {
-      "Authorization": `Bearer ${key}`,
-      "Content-Type": "application/json",
-      "Accept": "application/vnd.github+json",
-    },
-    body: JSON.stringify({ model: "openai/text-embedding-3-small", input: text }),
-  });
-  if (!res.ok) throw new Error(`embed ${res.status}: ${(await res.text()).slice(0, 200)}`);
-  const data = await res.json();
-  return data.data[0].embedding;
 }

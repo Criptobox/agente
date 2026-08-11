@@ -9,7 +9,6 @@ on:
 permissions:
   contents: write     # escribir memoria y hacer commit
   issues:   write     # comentar el handoff en el issue
-  models:   read      # <-- acceso GRATIS a inferencia (GitHub Models)
 
 jobs:
   run:
