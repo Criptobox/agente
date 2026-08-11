@@ -95,6 +95,29 @@ Lanzar: Actions → sandbox-breaker → repo=`Criptobox/TiendaMax`, task_id=`TAS
 
 ---
 
+## Herramientas reales de los agentes
+
+Cada `agents/*.md` declara `tools:` (qué puede usar ese rol). Antes eso era solo descripción: el modelo nunca podía llamarlas de verdad, solo razonaba sobre texto. Ahora, si el proveedor de IA lo soporta, el agente puede **llamar funciones reales** antes de responder:
+
+| Tool declarada | Qué hace de verdad | Dónde |
+|---|---|---|
+| `github.read_file` / `github.list_files` | Lee/lista archivos del repo del **proyecto** (no de agent-brain), en un checkout de solo lectura | code, logic, security, judge, devil, defender, prosecutor, impact |
+| `testing.run` | Ejecuta el comando de test que TÚ declaraste en `memory/projects/<slug>.md` (`test_cmd: npm test`, por ejemplo). Nunca ejecuta texto libre del modelo | test, judge, devil, defender, prosecutor |
+| `sandbox.request` | Hace una petición HTTP real contra el sandbox efímero (`SANDBOX_URL`), y solo contra ese origen | breaker, judge, prosecutor |
+| `memory.search` | Repite la búsqueda de memoria con otra consulta, si el contexto inicial no alcanzó | casi todos |
+
+**Cómo lo conecta el orquestador:** cuando abres un Issue, `orchestrate.js` intenta detectar a qué proyecto pertenece la tarea (por nombre/tags contra `memory/projects/*.md`) y lo guarda en `task.project`. Con eso, `agent-run.yml` hace un **segundo checkout** (`./target`) del repo real de ese proyecto antes de correr el agente — así `github.read_file` tiene algo real que leer.
+
+**Para activar tests reales de un proyecto**, añade a su `memory/projects/<slug>.md`:
+```
+test_cmd: npm test
+```
+Sin ese campo, `testing.run` responde honestamente "no configurado" en vez de inventar un resultado.
+
+**Límites de esta primera versión:** `web.search`/`web.open` (research) y `browser.open`/`browser.click` (breaker) siguen sin implementar — esos agentes siguen razonando solo en texto. Y si el proveedor de IA activo no soporta tool-calling, el sistema cae automáticamente al modo de una sola respuesta de texto (el de siempre): nunca se rompe una tarea por esto.
+
+---
+
 ## Reglas que hacen que esto funcione (no las quites)
 
 1. **El que hace el trabajo nunca declara su éxito.** Eso es del Judge, contra gates escritos antes de empezar.
@@ -109,11 +132,12 @@ Lanzar: Actions → sandbox-breaker → repo=`Criptobox/TiendaMax`, task_id=`TAS
 
 ```
 agents/       definición de cada agente (markdown declarativo)
-memory/       errors/ decisions/ facts/ lessons/ projects/  (la base de conocimiento)
+memory/       errors/ decisions/ facts/ lessons/ projects/ criterio/  (la base de conocimiento)
 tasks/        TASK-XXXX.json (estado, gates, handoffs)
-src/          runner.js (ciclo), memory.js, context.js, models.js, orchestrate.js
+src/          runner.js (ciclo por agente) · agentLoop.js (tool-calling) · tools.js (herramientas reales)
+              memory.js · context.js · models.js · orchestrate.js · tribunal.js · resolve-project.js
 dashboard/    panel estático para GitHub Pages
-.github/workflows/  agent-run · orchestrator · sandbox-breaker
+.github/workflows/  agent-run · orchestrator · tribunal · sandbox-breaker · nightly · self-improve · doctor · pages
 ```
 
 ## El único criterio de éxito

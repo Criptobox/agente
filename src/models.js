@@ -39,7 +39,11 @@ const PROVIDERS = [
 ];
 
 // tier: "cheap" | "strong" | "code"  -> el Model Router elige coste vs capacidad.
-export async function chat(messages, { tier = "cheap", temperature = 0.2, max_tokens = 2000, json = false } = {}) {
+// tools: lista de function-schemas (formato OpenAI) para tool-calling real.
+// Si un proveedor no soporta "tools" (o el modelo no lo usa), simplemente
+// responde texto y seguimos igual que antes: el tool-calling es opcional,
+// nunca un requisito para que el sistema funcione.
+export async function chat(messages, { tier = "cheap", temperature = 0.2, max_tokens = 2000, json = false, tools = null } = {}) {
   let lastErr;
   for (const p of PROVIDERS) {
     const key = p.key();
@@ -48,15 +52,20 @@ export async function chat(messages, { tier = "cheap", temperature = 0.2, max_to
     try {
       const body = { model, messages, temperature, max_tokens };
       if (json) body.response_format = { type: "json_object" };
+      if (tools && tools.length) body.tools = tools;
       const res = await fetch(p.url, { method: "POST", headers: p.headers(key), body: JSON.stringify(body) });
       if (!res.ok) {
         lastErr = new Error(`${p.name} ${res.status}: ${(await res.text()).slice(0, 300)}`);
-        // 429 = rate limit -> probar siguiente proveedor. Otros errores igual.
+        // 429 = rate limit, o "tools" no soportado -> probar siguiente proveedor.
         continue;
       }
       const data = await res.json();
-      const text = data?.choices?.[0]?.message?.content ?? "";
-      return { text, provider: p.name, model, usage: data?.usage || null };
+      const msg = data?.choices?.[0]?.message || {};
+      return {
+        text: msg.content ?? "",
+        tool_calls: msg.tool_calls || null,
+        provider: p.name, model, usage: data?.usage || null,
+      };
     } catch (e) {
       lastErr = e;
       continue;

@@ -19,11 +19,27 @@ jobs:
       - uses: actions/setup-node@v4
         with: { node-version: '20' }
 
+      - name: Resolver proyecto de la tarea
+        id: proj
+        env: { TASK_ID: ${{ inputs.task_id }} }
+        run: node src/resolve-project.js
+
+      - name: Checkout del código del proyecto (./target, solo lectura)
+        if: ${{ steps.proj.outputs.repo != '' }}
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ steps.proj.outputs.repo }}
+          path: target
+
       - name: Ejecutar agente
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           AGENT:   ${{ inputs.agent }}
           TASK_ID: ${{ inputs.task_id }}
+          # Si hubo checkout del proyecto, esto habilita las tools de lectura
+          # de código y de test real (github.read_file, testing.run).
+          PROJECT_DIR: target
+          PROJECT_META_FILE: ${{ steps.proj.outputs.meta_file }}
           # Opcionales (fallback). Deja vacíos si no los usas:
           GROQ_API_KEY:   ${{ secrets.GROQ_API_KEY }}
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}

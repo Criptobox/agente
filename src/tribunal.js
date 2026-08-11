@@ -8,9 +8,10 @@
 // El juez es el único que cierra. Defensor y fiscal solo aportan evidencia.
 
 import fs from "node:fs";
-import { chat, chatExcluding, availableProviders } from "./models.js";
+import { chatExcluding, availableProviders } from "./models.js";
 import { loadAgent, loadMasterPrompt, buildContext, renderContext } from "./context.js";
 import { safeId } from "./util.js";
+import { runTurnSafe, parseJSON } from "./agentLoop.js";
 
 const TASK_ID = process.env.TASK_ID;
 
@@ -21,23 +22,16 @@ function loadTask(id) {
 }
 function saveTask(t) { fs.writeFileSync(`tasks/${t.id}.json`, JSON.stringify(t, null, 2)); }
 
-function parseJSON(text) {
-  const fence = text.match(/```(?:json)?\s*([\s\S]*?)```/);
-  const c = fence ? fence[1] : text;
-  const s = c.indexOf("{"), e = c.lastIndexOf("}");
-  if (s === -1 || e === -1) throw new Error("sin JSON");
-  return JSON.parse(c.slice(s, e + 1));
-}
-
+// Defensor/fiscal/juez declaran github.read_file, testing.run y
+// sandbox.request en sus agents/*.md: con el ciclo con herramientas pueden
+// verificar contra código y tests reales, no solo argumentar sobre texto.
 async function runRole(role, task, extraContext) {
-  const system = `${loadMasterPrompt()}\n\n## TU ROL\n${loadAgent(role)}`;
+  const agentMarkdown = loadAgent(role);
+  const system = `${loadMasterPrompt()}\n\n## TU ROL\n${agentMarkdown}`;
   const ctx = renderContext(buildContext(task));
   const user = `${ctx}\n\n${extraContext}\n\nResponde SOLO con el JSON de tu formato.`;
-  const out = await chat(
-    [{ role: "system", content: system }, { role: "user", content: user }],
-    { tier: "strong", json: true, max_tokens: 2000 }
-  );
-  return { json: parseJSON(out.text), provider: out.provider, model: out.model };
+  const { result, out, toolLog } = await runTurnSafe({ system, user, tier: "strong", agentMarkdown, max_tokens: 2000 });
+  return { json: result, provider: out.provider, model: out.model, toolLog };
 }
 
 async function main() {
@@ -89,6 +83,11 @@ async function main() {
     judge: verdict.json,
     cross_check: crossCheck,
     judge_model: `${verdict.provider}/${verdict.model}`,
+    tool_calls: {
+      defense: defense.toolLog.map(t => t.name),
+      prosecution: prosecution.toolLog.map(t => t.name),
+      judge: verdict.toolLog.map(t => t.name),
+    },
   };
   // Si el segundo modelo NO está de acuerdo, no cerramos: sube a decisión humana.
   const crossConflict = crossCheck && crossCheck.agrees === false;
@@ -103,6 +102,7 @@ async function main() {
     ``,
     `**Veredicto del juez:** ${verdict.json.verdict === "GREEN" ? "🟢 GREEN" : "🔴 RED"}  _(${verdict.provider}/${verdict.model})_`,
     verdict.json.reason ? `> ${verdict.json.reason}` : "",
+    verdict.toolLog.length ? `_Verificado con: ${verdict.toolLog.map(t => t.name).join(", ")}_` : "",
     ``,
     `**Ataque más fuerte del fiscal:** ${prosecution.json.honest_verdict === "could_not_break_it"
       ? "no logró romperla (buena señal)"

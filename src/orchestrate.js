@@ -2,12 +2,31 @@
 // Convierte un Issue en una tarea: consulta memoria, define gates y elige el primer agente.
 
 import fs from "node:fs";
+import path from "node:path";
 import { chat } from "./models.js";
-import { search } from "./memory.js";
+import { search, loadAll } from "./memory.js";
 
 const title = process.env.ISSUE_TITLE || "";
 const body  = process.env.ISSUE_BODY  || "";
 const issue = process.env.ISSUE_NUM   || "";
+
+// Antes esto no existía: task.project nunca se fijaba, así que ni el
+// scoring por proyecto en memory.search() ni (ahora) el checkout del repo
+// real del proyecto en agent-run.yml tenían de dónde sacar el dato.
+// Heurística simple: si el slug, nombre o algún tag de un memory/projects/*.md
+// aparece en el texto de la tarea, esa es la tarea de ese proyecto.
+function detectProject(goal) {
+  const g = goal.toLowerCase();
+  for (const p of loadAll().filter(m => m.type === "project")) {
+    const slug = path.basename(p._file, ".md").toLowerCase();
+    const name = String(p.name || "").toLowerCase();
+    const tags = [].concat(p.tags || []).map(t => String(t).toLowerCase());
+    if ((slug && g.includes(slug)) || (name && g.includes(name)) || tags.some(t => g.includes(t))) {
+      return slug;
+    }
+  }
+  return null;
+}
 
 function nextTaskId() {
   const dir = "tasks";
@@ -20,9 +39,10 @@ function nextTaskId() {
 
 async function main() {
   const goal = `${title}. ${body}`.trim();
+  const project = detectProject(goal);
 
   // 1. Consultar memoria ANTES de crear trabajo.
-  const related = search(goal, { limit: 6 });
+  const related = search(goal, { project, limit: 6 });
 
   // 2. Pedir al modelo un plan mínimo: gates + primer agente.
   const system = `Eres el ORCHESTRATOR de un sistema multi-agente. Tu trabajo aquí:
@@ -53,7 +73,7 @@ Responde SOLO con JSON:
 
   const id = nextTaskId();
   const task = {
-    id, issue: Number(issue) || null, goal,
+    id, issue: Number(issue) || null, goal, project,
     status: "queued",
     assigned: plan.first_agent || "code",
     continues_from: plan.continues_from || [],
@@ -67,6 +87,7 @@ Responde SOLO con JSON:
 
   const summary = [
     `### 🧠 Orchestrator — ${id} creada`,
+    project ? `**Proyecto detectado:** ${project}` : `**Proyecto:** sin detectar (memoria general, sin checkout de código real)`,
     plan.continues_from?.length ? `**Continúa desde:** ${plan.continues_from.join(", ")} (no empiezo de cero)` : `**Nuevo** (sin trabajo previo relacionado)`,
     "",
     plan.plan_summary || "",

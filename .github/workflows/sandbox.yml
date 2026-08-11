@@ -41,6 +41,7 @@ jobs:
           AGENT: breaker
           TASK_ID: ${{ inputs.task_id }}
           SANDBOX_URL: http://localhost:8080
+          PROJECT_DIR: target
         run: node src/runner.js
 
       - name: Comentar resultado
