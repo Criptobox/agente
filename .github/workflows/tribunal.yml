@@ -17,8 +17,10 @@ permissions:
 
 jobs:
   tribunal:
-    # Corre si es dispatch manual, o si alguien comentó "/tribunal" en un Issue.
-    if: ${{ github.event_name == 'workflow_dispatch' || startsWith(github.event.comment.body, '/tribunal') }}
+    # Corre si es dispatch manual, o si alguien comentó "/tribunal" en un Issue
+    # (no en un PR: issue_comment también dispara ahí y github.event.issue.pull_request
+    # solo existe cuando el comentario es de un PR).
+    if: ${{ github.event_name == 'workflow_dispatch' || (github.event_name == 'issue_comment' && !github.event.issue.pull_request && startsWith(github.event.comment.body, '/tribunal')) }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4

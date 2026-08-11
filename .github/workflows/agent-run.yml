@@ -21,7 +21,7 @@ jobs:
 
       - name: Resolver proyecto de la tarea
         id: proj
-        env: { TASK_ID: ${{ inputs.task_id }} }
+        env: { TASK_ID: "${{ inputs.task_id }}" }
         run: node src/resolve-project.js
 
       - name: Checkout del código del proyecto (./target, solo lectura)
