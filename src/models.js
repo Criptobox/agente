@@ -81,22 +81,25 @@ const PROVIDERS = [
     models: { cheap: "openrouter/free", strong: "openrouter/free", code: "openrouter/free" },
     headers: (key) => ({ "Authorization": `Bearer ${key}`, "Content-Type": "application/json" }),
   },
-  // Z.ai (GLM): API propia OpenAI-compatible. "glm-5.2" confirmado real
-  // (endpoint, auth y formato) contra una petición de ejemplo real del
-  // usuario -no una suposición nuestra, a diferencia del resto del catálogo
-  // de este archivo, que solo se pudo verificar por búsqueda-.
-  // OJO DE COSTO: a diferencia de Groq/Gemini/OpenRouter, glm-5.2 NO es
-  // gratis-ilimitado. Tiene créditos gratis iniciales y luego cobra
-  // (~$0.95-1.40 / $3-4.40 por millón de tokens input/output), con el tier
-  // gratis limitado a ~50 peticiones/día. Por eso va último en la lista:
-  // solo se usa si los demás no están configurados o fallan.
+  // Z.ai (GLM): API propia OpenAI-compatible. Endpoint, auth y formato
+  // confirmados con una petición real del usuario contra este mismo
+  // endpoint (usaba "glm-5.2"). GLM-5.2 es el modelo flagship de pago:
+  // créditos gratis iniciales y luego cobra (~$0.95-1.40 / $3-4.40 por
+  // millón de tokens), con el tier gratis limitado a ~50 peticiones/día.
+  // GLM-4.5-Flash / GLM-4.7-Flash, en cambio, son gratis de verdad para
+  // este mismo endpoint (~1000 peticiones/día) según varias fuentes
+  // independientes -aunque, a diferencia de "glm-5.2", esto no lo pude
+  // confirmar con una petición real, solo por búsqueda-. Se usan estos
+  // por defecto, coherente con el resto del archivo (proveedor gratis
+  // primero); si fallan con "model not found", cambia a "glm-5.2" (más
+  // capaz, pero de pago) o confirma el ID vigente en https://docs.z.ai.
   {
     name: "zai",
     url: "https://api.z.ai/api/paas/v4/chat/completions",
     key: () => process.env.ZAI_API_KEY,
-    models: { cheap: "glm-5.2", strong: "glm-5.2", code: "glm-5.2" },
-    // GLM-5.2 es un modelo de razonamiento (thinking). Con reasoning_effort
-    // alto puede repetir el mismo problema que ya vimos en Groq: gastar el
+    models: { cheap: "glm-4.5-flash", strong: "glm-4.7-flash", code: "glm-4.7-flash" },
+    // Los GLM son modelos de razonamiento (thinking). Con reasoning_effort
+    // alto pueden repetir el mismo problema que ya vimos en Groq: gastar el
     // max_tokens pensando y devolver "content" vacío. "low" lo evita.
     extraBody: { thinking: { type: "enabled" }, reasoning_effort: "low" },
     headers: (key) => ({ "Authorization": `Bearer ${key}`, "Content-Type": "application/json" }),
