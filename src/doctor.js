@@ -14,9 +14,14 @@ async function main() {
   // por completo el 30-jul-2026: ya no es una opción, ni principal ni de
   // respaldo. GROQ_API_KEY o GEMINI_API_KEY son OBLIGATORIOS ahora.
   try {
+    // max_tokens generoso a propósito: los modelos "cheap" actuales de Groq
+    // (openai/gpt-oss-20b) son modelos de razonamiento — gastan parte del
+    // presupuesto de tokens en pensar antes de responder. Con un límite
+    // muy ajustado (antes: 5) el texto visible podía salir vacío aunque la
+    // IA conectara bien, lo que parecía un fallo cuando no lo era.
     const out = await chat(
       [{ role: "user", content: "Responde solo con la palabra: OK" }],
-      { tier: "cheap", max_tokens: 5 }
+      { tier: "cheap", max_tokens: 40 }
     );
     if (/ok/i.test(out.text)) {
       lines.push(`- ✅ **IA gratis funciona** (respondió \`${out.provider}/${out.model}\`). El cerebro puede pensar.`);
