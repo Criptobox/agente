@@ -1,5 +1,7 @@
 # 🧠 agent-brain
 
+> 👉 **¿Primera vez? Sigue [SETUP.md](SETUP.md): 6 pasos desde el móvil y queda todo funcionando (incluye el auto-deploy de la app).**
+
 Sistema multi-agente con memoria compartida. **Coste $0**, sin servidor, operable desde el móvil.
 Corre sobre GitHub: Actions = runtime, GitHub Models = IA gratis, archivos del repo = memoria, commits = auditoría, Issues = tareas, comentarios = handoffs.
 
