@@ -67,6 +67,19 @@ const PROVIDERS = [
     models: { cheap: "gemini-3.5-flash-lite", strong: "gemini-3.6-flash", code: "gemini-3.6-flash" },
     headers: (key) => ({ "Authorization": `Bearer ${key}`, "Content-Type": "application/json" }),
   },
+  // Mistral: 1.000 millones de tokens/mes gratis (plan "Experiment"), sin
+  // tarjeta -solo verificación de teléfono-. Usa alias "-latest" en vez de
+  // IDs fechados, así que no se queda obsoleto como ya nos pasó con Groq/
+  // Gemini/GitHub Models. Su único límite real: 2 peticiones/minuto en el
+  // tier gratis -por eso va después de Groq/Gemini, no antes-; el
+  // reintento con espera de más abajo (ante 429) ya lo cubre razonablemente.
+  {
+    name: "mistral",
+    url: "https://api.mistral.ai/v1/chat/completions",
+    key: () => process.env.MISTRAL_API_KEY,
+    models: { cheap: "mistral-small-latest", strong: "mistral-large-latest", code: "mistral-large-latest" },
+    headers: (key) => ({ "Authorization": `Bearer ${key}`, "Content-Type": "application/json" }),
+  },
   // OpenRouter: pasarela única a decenas de proveedores. "openrouter/free"
   // es su ROUTER gratis: elige automáticamente, en cada llamada, un modelo
   // gratis disponible AHORA MISMO que soporte lo que pidas (tool-calling,
@@ -113,7 +126,7 @@ const PROVIDERS = [
 // nunca un requisito para que el sistema funcione.
 export async function chat(messages, { tier = "cheap", temperature = 0.2, max_tokens = 2000, json = false, tools = null } = {}) {
   if (availableProviders().length === 0) {
-    throw new Error("ningún proveedor de IA configurado: agrega GROQ_API_KEY, GEMINI_API_KEY, OPENROUTER_API_KEY o ZAI_API_KEY como secret (GitHub Models se retiró el 30-jul-2026)");
+    throw new Error("ningún proveedor de IA configurado: agrega GROQ_API_KEY, GEMINI_API_KEY, MISTRAL_API_KEY, OPENROUTER_API_KEY o ZAI_API_KEY como secret (GitHub Models se retiró el 30-jul-2026)");
   }
   let lastErr;
   for (const p of PROVIDERS) {
