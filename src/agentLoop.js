@@ -24,6 +24,10 @@ export async function runTurn({ system, user, tier, agentMarkdown, max_tokens = 
   const { schemas, run: runTool } = toolsForAgent(agentMarkdown);
   const toolLog = [];
   const messages = [{ role: "system", content: system }, { role: "user", content: user }];
+  // Cada turno con tools es una llamada de chat() aparte, cada una con su
+  // propio "usage": si solo devolviéramos el usage del último turno,
+  // subestimaríamos el gasto real de una tarea con varias llamadas a tools.
+  let totalTokens = 0;
 
   for (let turn = 0; turn < MAX_TOOL_TURNS; turn++) {
     const offerTools = schemas.length > 0 && turn < MAX_TOOL_TURNS - 1;
@@ -32,6 +36,7 @@ export async function runTurn({ system, user, tier, agentMarkdown, max_tokens = 
       json: !offerTools, // JSON estricto solo en el turno en que ya no hay tools que ofrecer
       tools: offerTools ? schemas : null,
     });
+    totalTokens += out.usage?.total_tokens ?? ((out.usage?.prompt_tokens || 0) + (out.usage?.completion_tokens || 0));
 
     if (out.tool_calls?.length) {
       messages.push({ role: "assistant", content: out.text || null, tool_calls: out.tool_calls });
@@ -42,7 +47,7 @@ export async function runTurn({ system, user, tier, agentMarkdown, max_tokens = 
       }
       continue;
     }
-    return { result: parseJSON(out.text), out, toolLog };
+    return { result: parseJSON(out.text), out: { ...out, totalTokens }, toolLog };
   }
   throw new Error("se agotaron los turnos de herramientas sin respuesta final");
 }
@@ -59,6 +64,7 @@ export async function runTurnSafe(opts) {
       [{ role: "system", content: opts.system }, { role: "user", content: opts.user }],
       { tier: opts.tier, json: true, max_tokens: opts.max_tokens || 2500 }
     );
-    return { result: parseJSON(out.text), out, toolLog: [] };
+    const totalTokens = out.usage?.total_tokens ?? ((out.usage?.prompt_tokens || 0) + (out.usage?.completion_tokens || 0));
+    return { result: parseJSON(out.text), out: { ...out, totalTokens }, toolLog: [] };
   }
 }

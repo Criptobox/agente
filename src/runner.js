@@ -73,7 +73,25 @@ async function main() {
   task.handoffs = task.handoffs || [];
   task.handoffs.push({ agent: AGENT, at: new Date().toISOString(), route: result.route, handoff: result.handoff, tool_calls: toolLog.length });
   task.last_result = result;
-  if (result.needs_human) task.status = "waiting_human";
+
+  // El presupuesto (task.budget) se definía al crear la tarea pero nadie lo
+  // comprobaba nunca: una tarea podía encadenar handoffs o gastar tokens sin
+  // límite real. Se acumula aquí, donde ya sabemos cuánto costó este turno.
+  task.attempts = (task.attempts || 0) + 1;
+  task.usage_tokens = (task.usage_tokens || 0) + (out.totalTokens || 0);
+  const budget = task.budget || {};
+  const overAttempts = budget.max_attempts && task.attempts > budget.max_attempts;
+  const overTokens = budget.max_tokens && task.usage_tokens > budget.max_tokens;
+
+  if (result.needs_human || overAttempts || overTokens) {
+    task.status = "waiting_human";
+  }
+  if (overAttempts || overTokens) {
+    task.budget_exceeded = {
+      reason: overTokens ? "max_tokens" : "max_attempts",
+      attempts: task.attempts, usage_tokens: task.usage_tokens, budget,
+    };
+  }
   saveTask(task);
 
   // Salida legible para el comentario del Issue (la lee el workflow).
@@ -88,7 +106,10 @@ async function main() {
     result.conflicts?.length ? `\n⚠️ **Conflictos:** ${result.conflicts.join("; ")}` : "",
     result.handoff ? `\n**Handoff → ${result.handoff.next_agent || "fin"}:** ${result.handoff.next_task || "-"}` : "",
     result.needs_human ? `\n🙋 **Requiere tu decisión.**` : "",
-    `\n_modelo: ${out.provider}/${out.model}_`,
+    (overAttempts || overTokens)
+      ? `\n🚨 **Presupuesto agotado** (${task.attempts}/${budget.max_attempts || "∞"} intentos, ${task.usage_tokens}/${budget.max_tokens || "∞"} tokens) — pausada, requiere tu decisión.`
+      : "",
+    `\n_modelo: ${out.provider}/${out.model} · tokens de esta tarea: ${task.usage_tokens}_`,
   ].filter(x => x !== null).join("\n");
 
   fs.writeFileSync("agent_output.md", summary);
