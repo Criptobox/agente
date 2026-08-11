@@ -81,18 +81,24 @@ const PROVIDERS = [
     models: { cheap: "openrouter/free", strong: "openrouter/free", code: "openrouter/free" },
     headers: (key) => ({ "Authorization": `Bearer ${key}`, "Content-Type": "application/json" }),
   },
-  // Z.ai (GLM): API propia OpenAI-compatible, con GLM-4.5-Flash/4.7-Flash
-  // gratis. OJO: no pude verificar el ID exacto del modelo contra la doc
-  // oficial (docs.z.ai) -la red de este entorno bloquea el acceso directo
-  // a ese dominio-, solo por búsqueda. Si doctor.js falla aquí con "model
-  // not found" o similar, confirma el ID vigente en https://docs.z.ai y
-  // corrígelo abajo; el resto del pipeline (endpoint, auth, formato) sí
-  // está confirmado como compatible con OpenAI, tool-calling incluido.
+  // Z.ai (GLM): API propia OpenAI-compatible. "glm-5.2" confirmado real
+  // (endpoint, auth y formato) contra una petición de ejemplo real del
+  // usuario -no una suposición nuestra, a diferencia del resto del catálogo
+  // de este archivo, que solo se pudo verificar por búsqueda-.
+  // OJO DE COSTO: a diferencia de Groq/Gemini/OpenRouter, glm-5.2 NO es
+  // gratis-ilimitado. Tiene créditos gratis iniciales y luego cobra
+  // (~$0.95-1.40 / $3-4.40 por millón de tokens input/output), con el tier
+  // gratis limitado a ~50 peticiones/día. Por eso va último en la lista:
+  // solo se usa si los demás no están configurados o fallan.
   {
     name: "zai",
     url: "https://api.z.ai/api/paas/v4/chat/completions",
     key: () => process.env.ZAI_API_KEY,
-    models: { cheap: "glm-4.5-flash", strong: "glm-4.7-flash", code: "glm-4.7-flash" },
+    models: { cheap: "glm-5.2", strong: "glm-5.2", code: "glm-5.2" },
+    // GLM-5.2 es un modelo de razonamiento (thinking). Con reasoning_effort
+    // alto puede repetir el mismo problema que ya vimos en Groq: gastar el
+    // max_tokens pensando y devolver "content" vacío. "low" lo evita.
+    extraBody: { thinking: { type: "enabled" }, reasoning_effort: "low" },
     headers: (key) => ({ "Authorization": `Bearer ${key}`, "Content-Type": "application/json" }),
   },
 ];

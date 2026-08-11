@@ -23,7 +23,7 @@ El sistema prueba proveedores en este orden, usa el primero que tengas configura
 | Groq | `GROQ_API_KEY` | [console.groq.com](https://console.groq.com) | La más rápida de sacar, límite gratis generoso. **Empieza por esta.** |
 | Gemini | `GEMINI_API_KEY` | [Google AI Studio](https://aistudio.google.com) | Segunda opción recomendada — con Groq + Gemini el tribunal ya hace verificación cruzada. |
 | OpenRouter | `OPENROUTER_API_KEY` | [openrouter.ai/keys](https://openrouter.ai/keys) | Pasarela a decenas de modelos; usa su router gratis (`openrouter/free`), que elige solo un modelo disponible en cada momento. |
-| Z.ai (GLM) | `ZAI_API_KEY` | [z.ai](https://z.ai/model-api) | GLM-4.5/4.7 Flash gratis. Si falla con "modelo no encontrado", el ID puede haber cambiado — revisa `src/models.js`. |
+| Z.ai (GLM-5.2) | `ZAI_API_KEY` | [z.ai](https://z.ai/model-api) | ⚠️ No es gratis-ilimitado como los otros tres: créditos gratis iniciales y luego pago por uso (tier gratis ~50 peticiones/día). Va último en la lista a propósito, solo como respaldo final. |
 
 Con **uno solo** ya funciona todo. Cuantos más tengas, más resistente es el sistema a que un proveedor se sature o cambie su catálogo.
 
