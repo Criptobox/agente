@@ -7,6 +7,7 @@ import fs from "node:fs";
 import { chat } from "./models.js";
 import { write } from "./memory.js";
 import { loadAgent, loadMasterPrompt, buildContext, renderContext } from "./context.js";
+import { safeId } from "./util.js";
 
 const AGENT   = process.env.AGENT;
 const TASK_ID = process.env.TASK_ID;
@@ -37,13 +38,18 @@ function parseJSON(text) {
 }
 
 async function main() {
-  const task = loadTask(TASK_ID);
+  // TASK_ID/AGENT pueden venir de un workflow_dispatch manual: se validan
+  // antes de usarlos para construir rutas de archivo (tasks/<id>.json, agents/<agent>.md).
+  const task = loadTask(safeId(TASK_ID));
   const ctx = buildContext(task);
   const master = loadMasterPrompt();
-  const role = loadAgent(AGENT);
+  const role = loadAgent(safeId(AGENT));
 
   const system = `${master}\n\n## TU ROL ESPECÍFICO\n${role}`;
-  const user = `${renderContext(ctx)}\n\nEjecuta tu ciclo y responde SOLO con el JSON del formato indicado.`;
+  const sandbox = process.env.SANDBOX_URL
+    ? `\n\nSANDBOX_URL: ${process.env.SANDBOX_URL} (copia efímera ya sirviendo ahí; describe las peticiones/pasos concretos contra esta URL — no la ejecutas tú mismo, no hay tool-calling real en F0)`
+    : "";
+  const user = `${renderContext(ctx)}${sandbox}\n\nEjecuta tu ciclo y responde SOLO con el JSON del formato indicado.`;
 
   const out = await chat(
     [{ role: "system", content: system }, { role: "user", content: user }],

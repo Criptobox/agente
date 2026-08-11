@@ -336,7 +336,7 @@ async function loadMemory(){
       <div class="card ${m.stale?'stale':''}">
         <span class="conf">${m.confidence!=null?'conf '+m.confidence:''}</span>
         <span class="id">${m.id}</span> <span class="ty">${m.type}${m.stale?' · obsoleta':''}</span>
-        <h3>${esc(m.title||m.statement||'')}</h3>
+        <h3>${esc(m.title||m.statement||m.rule||m.name||'')}</h3>
       </div>`).join("")||emptyMsg("Memoria vacía","Cuando el equipo trabaje, irá aprendiendo aquí.");
   }catch(e){ box.innerHTML=errBox(e); document.getElementById("pMem").textContent="—"; }
 }

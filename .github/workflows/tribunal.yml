@@ -49,8 +49,17 @@ jobs:
           git config user.name "tribunal"
           git config user.email "agent@bot.local"
           git add tasks/
-          git diff --staged --quiet || git commit -m "tribunal: veredicto ${{ steps.t.outputs.task_id }}"
-          git push
+          git diff --staged --quiet && { echo "sin cambios"; exit 0; }
+          git commit -m "tribunal: veredicto ${{ steps.t.outputs.task_id }}"
+          BRANCH=$(git rev-parse --abbrev-ref HEAD)
+          for i in 1 2 3 4; do
+            git push origin "HEAD:$BRANCH" && exit 0
+            echo "push rechazado (intento $i), sincronizando con origin/$BRANCH..."
+            git fetch origin "$BRANCH"
+            git rebase "origin/$BRANCH" || { echo "conflicto al rebasar, aborto"; git rebase --abort; exit 1; }
+            sleep $((i * 2))
+          done
+          echo "no se pudo publicar tras varios intentos"; exit 1
 
       - name: Publicar veredicto en el Issue
         if: ${{ github.event_name == 'issue_comment' }}

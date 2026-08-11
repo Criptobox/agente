@@ -90,7 +90,7 @@
   {
     "id": "LESSON-001",
     "type": "lesson",
-    "title": "",
+    "title": "Antes de sanear el tipo, verificar integridad referencial del dato.",
     "confidence": 85,
     "stale": false,
     "project": null
@@ -98,7 +98,7 @@
   {
     "id": "LESSON-101",
     "type": "lesson",
-    "title": "",
+    "title": "Si el código resuelve funciones por string (window[fn]), minificar con --no-rename.",
     "confidence": 96,
     "stale": false,
     "project": null
@@ -106,7 +106,7 @@
   {
     "id": "LESSON-102",
     "type": "lesson",
-    "title": "",
+    "title": "Espera el ESTADO real antes de continuar, nunca asumas orden por velocidad.",
     "confidence": 92,
     "stale": false,
     "project": null
@@ -114,7 +114,7 @@
   {
     "id": "LESSON-201",
     "type": "lesson",
-    "title": "",
+    "title": "El permiso es ESTADO de sesión verificado, nunca apariencia de la UI.",
     "confidence": 95,
     "stale": false,
     "project": null
@@ -122,7 +122,7 @@
   {
     "id": "LESSON-202",
     "type": "lesson",
-    "title": "",
+    "title": "En Firebase RTDB, escribe en la ruta específica y usa update(), no set() sobre el padre.",
     "confidence": 95,
     "stale": false,
     "project": null
@@ -130,7 +130,7 @@
   {
     "id": "LESSON-203",
     "type": "lesson",
-    "title": "",
+    "title": "Ningún secreto vive en el cliente ni viaja por Firebase. Las ops con token van en GitHub Actions.",
     "confidence": 98,
     "stale": false,
     "project": null
@@ -138,7 +138,7 @@
   {
     "id": "PROJ-axontech",
     "type": "project",
-    "title": "",
+    "title": "AXONTECH",
     "confidence": null,
     "stale": false,
     "project": null
@@ -146,6 +146,14 @@
   {
     "id": "PROJ-tiendamax",
     "type": "project",
+    "title": "TiendaMax",
+    "confidence": null,
+    "stale": false,
+    "project": null
+  },
+  {
+    "id": "CRIT-kros",
+    "type": "criterio",
     "title": "",
     "confidence": null,
     "stale": false,

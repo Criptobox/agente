@@ -32,9 +32,18 @@ jobs:
         run: |
           git config user.name  "nightly"
           git config user.email "agent@bot.local"
-          git add memory/ 
-          git diff --staged --quiet || git commit -m "nightly: decay + index $(date -u +%F)"
-          git push
+          git add memory/
+          git diff --staged --quiet && { echo "sin cambios"; exit 0; }
+          git commit -m "nightly: decay + index $(date -u +%F)"
+          BRANCH=$(git rev-parse --abbrev-ref HEAD)
+          for i in 1 2 3 4; do
+            git push origin "HEAD:$BRANCH" && exit 0
+            echo "push rechazado (intento $i), sincronizando con origin/$BRANCH..."
+            git fetch origin "$BRANCH"
+            git rebase "origin/$BRANCH" || { echo "conflicto al rebasar, aborto"; git rebase --abort; exit 1; }
+            sleep $((i * 2))
+          done
+          echo "no se pudo publicar tras varios intentos"; exit 1
 
       - name: Publicar diario (busca un issue con label 'diario' o crea uno)
         env: { GH_TOKEN: "${{ secrets.GITHUB_TOKEN }}" }

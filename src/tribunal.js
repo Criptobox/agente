@@ -10,6 +10,7 @@
 import fs from "node:fs";
 import { chat, chatExcluding, availableProviders } from "./models.js";
 import { loadAgent, loadMasterPrompt, buildContext, renderContext } from "./context.js";
+import { safeId } from "./util.js";
 
 const TASK_ID = process.env.TASK_ID;
 
@@ -40,7 +41,10 @@ async function runRole(role, task, extraContext) {
 }
 
 async function main() {
-  const task = loadTask(TASK_ID);
+  // TASK_ID puede venir de un comentario "/tribunal TASK-XXXX" en un Issue
+  // público -> cualquiera en internet controla este string. Se valida antes
+  // de usarlo como ruta de archivo (evita leer/escribir fuera de tasks/).
+  const task = loadTask(safeId(TASK_ID));
   const solution = task.last_result
     ? JSON.stringify(task.last_result, null, 2)
     : "(no hay solución propuesta en task.last_result)";
