@@ -92,26 +92,26 @@ Esto es lo que de verdad querías con "dos que debaten" — pero sin duplicar re
 
 ---
 
-## 🛰️ Vigilancia de la tienda (el centinela)
+## 🛰️ Vigilancia (el centinela)
 
-El centinela revisa **tiendamax.org** cada 10 minutos y diffea el catálogo del repo de la tienda (`Criptobox/TiendaMax` → `productos.json`). Todo lo ves en la app, pestaña **Vigilancia** — sin tocar GitHub:
+El centinela corre **cada 10 minutos** y diffea el **stock vivo de AXONTECH (axontech92.github.io/AXONTECH)** contra la foto anterior. Todo lo ves en la app, pestaña **Vigilancia** — sin tocar GitHub:
 
 | Qué vigila | Qué te avisa |
 |---|---|
-| **Web publicada** (portada, manifest, service worker, sitemap, productos.json servido…) | 🔴 Caída / 🟢 restablecida / 🐢 lenta — con el detalle del check que falló |
-| **Deploy** (¿lo publicado coincide con el repo?) | 📦 Web desactualizada (deploy pendiente o fallido en la tienda) |
-| **Catálogo del repo** (productos.json) | 🆕 producto nuevo · 🛑 agotado · 🟢 repuesto · ⚠️ stock bajo · 💸 cambio de comisión · 🏷️ cambio de precio · 🗑️ eliminado |
+| **Stock de AXONTECH (axontech92)** — leído de su Supabase (la misma fuente viva que la página, con consulta barata de "¿hubo cambios?" para no gastar su cuota; si falla, cae al `productos.json` de su repo) | 🛑 **se agotó** (stock → 0) · 🟢 **reponen stock** (0 → N) · 🆕 **producto nuevo** · ⚠️ stock bajo · 💸 **cambio de comisión** · 🏷️ cambio de precio · 🗑️ eliminado |
+| **Webs publicadas** (tiendamax.org y axontech92.github.io/AXONTECH: portada, manifest, service worker, JSONs…) | 🔴 Caída / 🟢 restablecida / 🐢 lenta — con el detalle del check que falló |
+| **Deploy** (¿lo publicado coincide con el repo?) | 📦 Web desactualizada (deploy pendiente o fallido) |
 | **Vigía diario** (1 vez al día, con IA barata) | Resumen del día + 2-4 sugerencias accionables (venta, higiene, preventiva, sistema). Cada sugerencia tiene un botón **＋ Convertir en tarea**: crea el Issue con etiqueta `agent` y el equipo se pone a trabajar. |
 
 **Cómo funciona por dentro:**
 - `vigilancia.yml` corre **cada 10 min** (cambiable a `*/5`). Es 100% determinista, **no gasta IA**: HTTP + diff de JSON. Escribe `vigilancia/reporte.json`, que la app lee sola. Solo hace commit cuando hay cambios reales (o 1 heartbeat por hora) para no ensuciar el historial.
 - `vigia-diario.yml` corre cada mañana (12:00 UTC ≈ 8 AM Cuba): digiere los datos del día y deja resumen + sugerencias en la app. Única llamada a la IA de toda la vigilancia (tier cheap).
-- Todo es configurable sin código en [`vigilancia/config.json`](vigilancia/config.json): URLs, checks, umbral de stock bajo, historial…
+- **Catálogos múltiples**: `vigilancia/config.json` acepta una lista `catalogos` (cada uno con su fuente: Supabase → repo → archivo). Añadir otro catálogo es copiar un bloque.
 - El badge 🔴 de la pestaña Vigilancia marca las alertas que aún no has visto; se limpia al abrirla.
 
-**Avisos por Telegram (opcional):** añade los secrets `TELEGRAM_BOT_TOKEN` y `TELEGRAM_CHAT_ID` en este repo y las caídas/agotados te llegan al móvil al instante (máx. 4/h, solo transiciones, sin spam). Sin secrets, todo funciona igual dentro de la app.
+**Avisos por Telegram (opcional):** añade los secrets `TELEGRAM_BOT_TOKEN` y `TELEGRAM_CHAT_ID` en este repo y las caídas, agotados y reposiciones de AXONTECH te llegan al móvil al instante (máx. 4/h, solo transiciones, sin spam). Sin secrets, todo funciona igual dentro de la app.
 
-**Prueba local:** `node tests/vigilancia.test.mjs` levanta una web falsa y verifica los 16 escenarios (caídas, agotados, comisiones, deploy…).
+**Prueba local:** `node tests/vigilancia.test.mjs` levanta una web y un Supabase falsos y verifica los 18 escenarios (agotados, reposiciones, nuevos, comisiones, consulta barata "sin cambios", deploy, caídas, digest…).
 
 `sandbox.yml` levanta una **copia** de tu web dentro del runner de GitHub y el Breaker la ataca ahí. **Nunca toca producción.** Apunta Firebase a un proyecto de PRUEBA para que no roce tus datos reales.
 

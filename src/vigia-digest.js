@@ -23,6 +23,10 @@ const fmtTiempo = (ts) => {
 };
 const horasAtras = (ts) => Math.round((Date.now() - new Date(ts).getTime()) / 3600000);
 
+function catalogos(reporte) {
+  return reporte.catalogos || (reporte.catalogo ? [reporte.catalogo] : []);
+}
+
 function resumenDatos(reporte, historial) {
   const corte = Date.now() - 48 * 3600000;
   const runs = (historial || []).filter(h => new Date(h.ts).getTime() > corte);
@@ -32,8 +36,8 @@ function resumenDatos(reporte, historial) {
   const lineas = [
     `Ventana: últimas 48 h · revisiones: ${runs.length}`,
     `Web: ${caidas === 0 ? "sin caídas" : `${caidas} revisiones con caída`} · tiempo máx de respuesta: ${Math.max(0, ...runs.map(r => r.ms || 0))} ms`,
-    `Catálogo: ${reporte.catalogo?.n ?? "?"} productos · agotados ahora: ${reporte.catalogo?.agotados ?? "?"} · stock bajo: ${reporte.catalogo?.stockBajo ?? "?"}`,
-    `Últimas 24h: ${reporte.catalogo?.nuevos24h ?? 0} nuevos · ${reporte.catalogo?.agotados24h ?? 0} agotados · ${reporte.catalogo?.comisiones24h ?? 0} cambios de comisión`,
+    ...catalogos(reporte).map(c =>
+      `Catálogo ${c.nombre}: ${c.n ?? "?"} productos · agotados ahora: ${c.agotados ?? "?"} · stock bajo: ${c.stockBajo ?? "?"} · últimas 24h: ${c.nuevos24h ?? 0} nuevos, ${c.agotados24h ?? 0} agotados, ${c.comisiones24h ?? 0} cambios de comisión`),
     `Críticas (48h): ${criticas.length ? criticas.map(a => `${a.titulo} (${fmtTiempo(a.ts)})`).join("; ") : "ninguna"}`,
     `Avisos (48h): ${avisos.length ? avisos.slice(0, 12).map(a => `${a.titulo} — ${a.detalle} (${fmtTiempo(a.ts)})`).join(" | ") : "ninguno"}`,
   ];
@@ -43,39 +47,51 @@ function resumenDatos(reporte, historial) {
 // Sugerencias deterministas (fallback sin IA): siempre accionables, con dato real.
 function sugerenciasFallback(reporte, historial) {
   const s = [];
-  const c = reporte.catalogo || {};
-  if (c.agotados > 0) s.push({
-    id: "F-agotados", titulo: `Revisar los ${c.agotados} productos agotados`,
-    detalle: `Casi la mitad del catálogo está con stock 0. Decide cuáles reponer, cuáles ocultar de la portada y cuáles marcar como "bajo pedido" para no perder ventas.`,
-    impacto: "alto", categoria: "venta",
-  });
-  if ((c.agotados24h || 0) > 0) s.push({
-    id: "F-rotacion", titulo: `Hay productos que se agotaron en las últimas 24 h`,
-    detalle: "Esos son tus más vendidos: prioriza reponerlos y revisa si merecen una sección de \"más vendidos\".",
-    impacto: "medio", categoria: "venta",
-  });
+  const cats = catalogos(reporte);
+  for (const c of cats) {
+    if ((c.agotados || 0) > 0) s.push({
+      id: `F-agotados-${c.nombre}`, titulo: `Revisar los ${c.agotados} productos agotados de ${c.nombre}`,
+      detalle: `Casi la mitad del catálogo de ${c.nombre} está con stock 0. Vigila cuáles reponen y cuáles nunca vuelven: ese patrón te dice qué vende.`,
+      impacto: "alto", categoria: "venta",
+    });
+    if ((c.agotados24h || 0) > 0) s.push({
+      id: `F-rotacion-${c.nombre}`, titulo: `En ${c.nombre} se agotó algo en las últimas 24 h`,
+      detalle: "Ese producto está rotando: prioriza enterarte en cuanto repongan stock (el centinela avisa con 🟢 repuesto).",
+      impacto: "medio", categoria: "venta",
+    });
+    if ((c.nuevos24h || 0) > 0) s.push({
+      id: `F-nuevos-${c.nombre}`, titulo: `${c.nuevos24h} producto(s) nuevo(s) en ${c.nombre} en 24 h`,
+      detalle: "Revisa el detalle en la pestaña Vigilancia y decide si te interesa para tu catálogo.",
+      impacto: "medio", categoria: "venta",
+    });
+    if ((c.comisiones24h || 0) > 0) s.push({
+      id: `F-comision-${c.nombre}`, titulo: `Cambiaron comisiones en ${c.nombre} en 24 h`,
+      detalle: "Mira qué productos cambiaron de comisión y actualiza tus márgenes si revendes.",
+      impacto: "medio", categoria: "venta",
+    });
+  }
   const runs = (historial || []).slice(0, 144);
   const caidas = runs.filter(h => !h.webOk).length;
   if (caidas > 0) s.push({
-    id: "F-caidas", titulo: `La web tuvo ${caidas} revisiones con fallo`,
-    detalle: "Mira la pestaña Vigilancia → alertas para ver el detalle. Si se repite, revisa el workflow pages del repo TiendaMax y el dominio tiendamax.org.",
+    id: "F-caidas", titulo: `Hubo ${caidas} revisiones con la web caída`,
+    detalle: "Mira la pestaña Vigilancia → alertas para ver el detalle de qué página falló.",
     impacto: "alto", categoria: "preventiva",
   });
   const lenta = runs.find(h => h.ms > 4000);
   if (lenta) s.push({
-    id: "F-lenta", titulo: "La portada tardó más de 4 s en responder",
-    detalle: "Para conexiones 3G en Cuba eso resta ventas. Revisa peso de imágenes (webp), lazy-loading y el service worker de TiendaMax.",
+    id: "F-lenta", titulo: "Alguna portada tardó más de 4 s en responder",
+    detalle: "Para conexiones 3G en Cuba eso resta ventas. Vale la pena revisar peso de imágenes y service worker.",
     impacto: "medio", categoria: "preventiva",
   });
   const deploy = (reporte.alertas || []).find(a => a.tipo === "deploy_desactualizado" && horasAtras(a.ts) <= 48);
   if (deploy) s.push({
-    id: "F-deploy", titulo: "La web publicada no coincide con el repo",
-    detalle: "Hay un deploy pendiente o fallido en TiendaMax. Revisa la pestaña Actions del repo de la tienda.",
+    id: "F-deploy", titulo: "Una web publicada no coincide con su repo",
+    detalle: "Hay un deploy pendiente o fallido. Revisa las Actions del repo correspondiente.",
     impacto: "alto", categoria: "sistema",
   });
   s.push({
     id: "F-telegram", titulo: "Activa los avisos por Telegram del centinela",
-    detalle: "Con los secrets TELEGRAM_BOT_TOKEN y TELEGRAM_CHAT_ID en el repo agente, las caídas y los agotados te llegan al móvil al instante, sin abrir la app.",
+    detalle: "Con los secrets TELEGRAM_BOT_TOKEN y TELEGRAM_CHAT_ID, agotados y reposiciones de AXONTECH te llegan al móvil al instante, sin abrir la app.",
     impacto: "bajo", categoria: "sistema",
   });
   return s.slice(0, 5);
@@ -105,7 +121,7 @@ async function main() {
     `Responde SOLO con JSON válido, sin texto alrededor:\n` +
     `{ "resumen": "2-4 frases directas para kros: qué pasó y qué mirar hoy", ` +
     `"sugerencias": [ { "id": "S-1", "titulo": "...", "detalle": "...", "impacto": "alto|medio|bajo", "categoria": "venta|higiene|preventiva|sistema" } ] }\n` +
-    `Máximo 4 sugerencias, ordenadas por impacto. Cada sugerencia debe nombrar el dato concreto que la justifica.`;
+    `Máximo 4 sugerencias, ordenadas por impacto. Cada sugerencia debe nombrar el dato concreto (y el catálogo) que la justifica.`;
 
   let out = null;
   try {

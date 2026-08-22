@@ -246,6 +246,8 @@
     <div id="vigDigest"></div>
     <div class="eyebrow">Estado de la web</div>
     <div id="vigWeb"></div>
+    <div class="eyebrow">Catálogos vigilados · stock</div>
+    <div id="vigCat"></div>
     <div class="eyebrow">Alertas · lo que cambió</div>
     <div id="vigAlerts"></div>
     <div class="eyebrow">Sugerencias para mejorar</div>
@@ -492,6 +494,20 @@ async function loadVigilancia(){
         ${w.fallidos&&w.fallidos.length?`<div style="color:var(--bad);font-size:12px;margin-top:6px;line-height:1.5">${esc(w.fallidos.join(" · "))}</div>`:""}
       </div>`).join("");
 
+    // catálogos vigilados (stock)
+    const cats=(rep.catalogos||[]).length?rep.catalogos:(rep.catalogo?[rep.catalogo]:[]);
+    document.getElementById("vigCat").innerHTML=cats.length?cats.map(c=>`
+      <div class="card">
+        <span class="id">📦 ${esc(c.nombre)}</span>
+        <div class="pulse" style="margin:12px 0 4px">
+          <div class="chip"><div class="k">Productos</div><div class="v gold">${c.n??"—"}</div><div class="s">en catálogo</div></div>
+          <div class="chip"><div class="k">Con stock</div><div class="v ${(c.conStock??0)>0?"ok":"bad"}">${c.conStock??"—"}</div><div class="s">disponibles</div></div>
+          <div class="chip"><div class="k">Agotados</div><div class="v ${(c.agotados??0)>0?"bad":"ok"}">${c.agotados??"—"}</div><div class="s">stock 0</div></div>
+          <div class="chip"><div class="k">Stock bajo</div><div class="v ${(c.stockBajo??0)>0?"warn":"ok"}">${c.stockBajo??"—"}</div><div class="s">por agotarse</div></div>
+        </div>
+        <div class="vignote">24 h: ${c.nuevos24h??0} nuevos · ${c.agotados24h??0} agotados · ${c.comisiones24h??0} comisiones cambiadas</div>
+      </div>`).join(""):emptyMsg("Sin catálogos vigilados","Configura vigilancia/config.json con el repo o Supabase a vigilar.");
+
     // alertas
     const alertas=(rep.alertas||[]).slice(0,40);
     alertsBox.innerHTML=alertas.length?alertas.map(a=>{
@@ -499,7 +515,7 @@ async function loadVigilancia(){
       const ico=sp.shift()||"ℹ️";
       return `<div class="alert sev-${a.severidad||"info"}">
         <div class="ico">${ico}</div>
-        <div class="cuerpo"><div class="tit">${esc(sp.join(" "))}</div>
+        <div class="cuerpo"><div class="tit">${esc(sp.join(" "))}${a.catalogo?` <span class="meta" style="margin-left:6px">${esc(a.catalogo)}</span>`:""}</div>
         <div class="det">${esc(a.detalle||"")}</div>
         <div class="cuando">${haceStr(a.ts)}</div></div></div>`;
     }).join(""):emptyMsg("Sin alertas","El centinela vigila cada 10 min: productos nuevos, agotados, comisiones y caídas aparecerán aquí.");
@@ -528,8 +544,9 @@ async function loadVigilancia(){
       </div>`:emptyMsg("Sin historial aún","Las revisiones del centinela pintarán aquí la línea de salud.");
 
   }catch(e){
-    alertsBox.innerHTML=emptyMsg("El centinela aún no ha corrido","En la primera revisión automática (cada 10 min) verás aquí la salud de la tienda, las alertas y las sugerencias.");
+    alertsBox.innerHTML=emptyMsg("El centinela aún no ha corrido","En la primera revisión automática (cada 10 min) verás aquí la salud de las páginas, el stock vigilado, las alertas y las sugerencias.");
     document.getElementById("vigWeb").innerHTML="";
+    document.getElementById("vigCat").innerHTML="";
     document.getElementById("vigDigest").innerHTML="";
     document.getElementById("vigSug").innerHTML="";
     document.getElementById("vigHist").innerHTML="";

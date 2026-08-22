@@ -8,35 +8,49 @@
       "tiempoMaximoMs": 6000,
       "checks": [
         { "path": "/", "debeContener": "TiendaMax", "noContener": "(?i)404 Not Found|page not found|en mantenimiento|error interno|página no encontrada" },
-        { "path": "/productos.json", "tipo": "json", "esCatalogo": true },
+        { "path": "/productos.json", "tipo": "json" },
         { "path": "/productos-lite.json", "tipo": "json" },
         { "path": "/manifest.json", "tipo": "json" },
         { "path": "/sw.js", "debeContener": "SKIP_WAITING" },
         { "path": "/sitemap.xml", "debeContener": "<urlset" },
         { "path": "/robots.txt" },
         { "path": "/logo.webp", "soloEstado": true }
-      ]
+      ],
+      "deploy": { "repo": "Criptobox/TiendaMax", "archivo": "productos.json" }
     },
     {
-      "nombre": "TiendaMax (GitHub Pages)",
-      "url": "https://criptobox.github.io/TiendaMax",
+      "nombre": "AXONTECH (axontech92)",
+      "url": "https://axontech92.github.io/AXONTECH",
       "tiempoMaximoMs": 6000,
       "checks": [
-        { "path": "/", "debeContener": "TiendaMax" },
-        { "path": "/productos.json", "tipo": "json" }
-      ]
+        { "path": "/", "debeContener": "AXONTECH", "noContener": "(?i)404 Not Found|page not found|error interno" },
+        { "path": "/productos.json", "tipo": "json", "esCatalogo": true },
+        { "path": "/data.json", "tipo": "json" },
+        { "path": "/manifest.json", "tipo": "json" },
+        { "path": "/sw.js", "debeContener": "AXONTECH" }
+      ],
+      "deploy": { "repo": "axontech92/AXONTECH", "archivo": "productos.json" }
     }
   ],
-  "catalogo": {
-    "repo": "Criptobox/TiendaMax",
-    "rama": "main",
-    "archivo": "productos.json",
-    "campos": ["id", "nombre", "slug", "stock", "comision", "comisionMoneda", "precioActual", "precioOriginal", "descuento", "fechaAgregado"],
-    "umbralStockBajo": 2
-  },
+  "catalogos": [
+    {
+      "nombre": "AXONTECH (axontech92)",
+      "//": "Stock VIVO de la página: lo lee de Supabase (la web hace poll cada 5 s de la misma tabla). Si Supabase falla, cae al export productos.json de su repo.",
+      "supabase": {
+        "url": "https://gdzsqwyedzrfituewdtt.supabase.co",
+        "key": "sb_publishable_Ftyw83d2WPU7TtC7JacCRw_uQuqFXdW",
+        "tabla": "productos"
+      },
+      "repo": "axontech92/AXONTECH",
+      "rama": "main",
+      "archivo": "productos.json",
+      "campos": ["id", "nombre", "name", "stock", "comision", "precioActual", "precioOriginal", "descuento"],
+      "umbralStockBajo": 2
+    }
+  ],
   "telegram": {
-    "habilitado": false,
-    "soloCriticas": true,
+    "habilitado": true,
+    "soloCriticas": false,
     "maxPorHora": 4
   },
   "historial": {

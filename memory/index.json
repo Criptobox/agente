@@ -162,9 +162,17 @@
   {
     "id": "FACT-101",
     "type": "fact",
-    "title": "La vigilancia continua vive en el repo agente: src/vigilancia.js diffea productos.json y escribe vigilancia/reporte.json (pestaña Vigilancia del dashboard).",
+    "title": "La vigilancia continua vive en el repo agente: src/vigilancia.js diffea catálogos (AXONTECH axontech92 vía Supabase + fallback repo) y escribe vigilancia/reporte.json.",
     "confidence": 95,
     "stale": false,
     "project": "tiendamax"
+  },
+  {
+    "id": "FACT-102",
+    "type": "fact",
+    "title": "La tienda AXONTECH de axontech92.github.io es EXTERNA a kros; su stock vivo está en Supabase (tabla productos, select público), no en productos.json del repo.",
+    "confidence": 95,
+    "stale": false,
+    "project": null
   }
 ]

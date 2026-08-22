@@ -1,13 +1,18 @@
 // src/vigilancia.js
-// CENTINELA DE LA TIENDA (vigilancia continua).
+// CENTINELA (vigilancia continua).
 // Corre cada pocos minutos vía .github/workflows/vigilancia.yml.
-// Determinista y SIN IA (coste $0): revisa la web publicada, diffea el
-// catálogo de productos del repo (Criptobox/TiendaMax → productos.json) y
-// detecta: caídas, web lenta, deploy desactualizado, productos nuevos,
-// agotados, reposiciones, cambios de comisión y de precio.
+// Determinista y SIN IA (coste $0). Revisa:
+//  1. WEBS publicadas (HTTP checks, tiendamax.org, axontech92.github.io/AXONTECH, …).
+//  2. CATÁLOGOS vigilados: diffea el stock/comisión/precio contra la foto
+//     anterior guardada en vigilancia/estado.json. Soporta varias fuentes
+//     por catálogo, en orden: Supabase REST (fuente viva de la página) →
+//     repo de GitHub (raw → API) → archivo local (solo pruebas).
+//     De Supabase primero hace una consulta barata (updated_at más reciente)
+//     y solo baja la tabla entera si algo cambió (o cada 60 min por si hubo
+//     borrados) — igual que hace la propia página para no gastar cuota.
+//  3. DEPLOY: si una web sirve /productos.json distinto al archivo del repo.
 // Escribe vigilancia/{reporte,estado,historial}.json, que el dashboard
-// (pestaña Vigilancia) lee directamente. Opcional: aviso por Telegram
-// (secrets TELEGRAM_BOT_TOKEN / TELEGRAM_CHAT_ID) solo en transiciones.
+// (pestaña Vigilancia) lee directamente. Opcional: Telegram en transiciones.
 //
 // Uso: node src/vigilancia.js [configFile] [--workdir=DIR] [--no-telegram]
 
@@ -34,24 +39,27 @@ async function fetchTimeout(url, ms, opts = {}) {
   finally { clearTimeout(t); }
 }
 
-// ---------- CATÁLOGO ----------
+// ---------- FUENTES DE CATÁLOGO ----------
 
-async function cargarCatalogo(cfg) {
-  const c = cfg.catalogo || {};
-  const errors = [];
-  if (c.fileLocal) { // solo para pruebas locales (apunta a un archivo del disco)
+function leerProductos(data) {
+  return Array.isArray(data) ? data : (data?.productos || data?.data || []);
+}
+
+// Archivo del repo (raw → API de GitHub). fileLocal solo para pruebas.
+async function leerProductosRepo(c) {
+  if (c.fileLocal) {
     try { return { productos: leerProductos(JSON.parse(fs.readFileSync(c.fileLocal, "utf8"))), fuente: c.fileLocal }; }
-    catch (e) { errors.push(`local (${e.message})`); }
+    catch (e) { return { error: `local (${e.message})` }; }
   }
+  const errors = [];
   if (c.repo) {
-    const rawUrl = `https://raw.githubusercontent.com/${c.repo}/${c.rama || "main"}/${c.archivo}`;
+    const rawUrl = `https://raw.githubusercontent.com/${c.repo}/${c.rama || "main"}/${c.archivo || "productos.json"}`;
     try {
       const res = await fetchTimeout(rawUrl, 20000);
       if (res.ok) return { productos: leerProductos(await res.json()), fuente: rawUrl };
       errors.push(`raw ${res.status}`);
     } catch (e) { errors.push(`raw (${e.message})`); }
-    // fallback: API de GitHub (funciona aunque raw falle; con token, sin límites de rate)
-    const apiUrl = `https://api.github.com/repos/${c.repo}/contents/${c.archivo}?ref=${c.rama || "main"}`;
+    const apiUrl = `https://api.github.com/repos/${c.repo}/contents/${c.archivo || "productos.json"}?ref=${c.rama || "main"}`;
     try {
       const headers = process.env.GITHUB_TOKEN
         ? { Authorization: `Bearer ${process.env.GITHUB_TOKEN}`, "User-Agent": "agente-vigilancia" }
@@ -67,15 +75,57 @@ async function cargarCatalogo(cfg) {
   return { error: errors.join(" · ") };
 }
 
-function leerProductos(data) {
-  return Array.isArray(data) ? data : (data?.productos || data?.data || []);
+// Supabase REST (la fuente viva de la página, con su misma clave publicable).
+// 1) Consulta barata del updated_at más nuevo. 2) Si cambió (o toca la red de
+// seguridad cada 60 min, por si borraron filas), baja la tabla entera.
+async function leerProductosSupabase(c, estadoCat) {
+  const sb = c.supabase;
+  if (!sb?.url || !sb?.tabla) return null;
+  const headers = {
+    apikey: sb.key || "",
+    Authorization: `Bearer ${sb.key || ""}`,
+    "Content-Type": "application/json",
+  };
+  const base = `${sb.url.replace(/\/+$/, "")}/rest/v1/${encodeURIComponent(sb.tabla)}`;
+  let maxUpd = null;
+  try {
+    const barato = await fetchTimeout(`${base}?select=updated_at&order=updated_at.desc&limit=1`, 15000, { headers });
+    if (!barato.ok) throw new Error(`cheap ${barato.status}`);
+    maxUpd = (await barato.json())[0]?.updated_at ?? null;
+    const tocaRed = !estadoCat?.ultimoFull || (Date.now() - estadoCat.ultimoFull) > 60 * 60000;
+    if (maxUpd && estadoCat?.maxUpdated === maxUpd && !tocaRed) {
+      return { sinCambios: true, fuente: `${sb.url} (sin cambios desde ${maxUpd})` };
+    }
+    const completo = await fetchTimeout(`${base}?select=data,updated_at&order=id.asc`, 25000, { headers });
+    if (!completo.ok) throw new Error(`full ${completo.status}`);
+    const rows = await completo.json();
+    const productos = rows.map(r => ({ ...(r.data || {}), id: r.data?.id ?? r.id }));
+    const maxDeFilas = rows.map(r => r.updated_at).filter(Boolean).sort().pop() || maxUpd;
+    return { productos, fuente: `${sb.url}/rest/v1/${sb.tabla}`, maxUpdated: maxDeFilas };
+  } catch (e) {
+    return { error: `supabase (${e.message})` };
+  }
 }
 
-// Fingerprint del catálogo: detecta si lo publicado difiere del repo.
+async function cargarCatalogo(c, estadoCat) {
+  const errors = [];
+  const sb = await leerProductosSupabase(c, estadoCat);
+  if (sb) {
+    if (sb.error) errors.push(sb.error);
+    else if (sb.sinCambios) return sb;
+    else return sb;
+  }
+  const repo = await leerProductosRepo(c);
+  if (repo.error) errors.push(repo.error);
+  else return repo;
+  return { error: errors.join(" · ") };
+}
+
+// Fingerprint del catálogo (para detectar deploy desactualizado).
 function huella(productos) {
   const h = crypto.createHash("sha1");
   for (const p of productos) {
-    h.update(`${p.id}:${p.stock ?? "?"}:${p.comision ?? "?"}:${p.comisionMoneda ?? "?"}:${p.precioActual ?? "?"};`);
+    h.update(`${p.id}:${p.stock ?? "?"}:${p.comision ?? "?"}:${p.precioActual ?? "?"};`);
   }
   return h.digest("hex").slice(0, 16);
 }
@@ -104,8 +154,9 @@ async function revisarSitio(sitio) {
         r.detalle = `no contiene "${check.debeContener}"`; resultados.push(r); continue;
       }
       if (check.noContener) {
+        // `(?i)` (flag inline, sintaxis PCRE) no existe en JS: se traduce a la flag "i".
         let re = check.noContener, flags = "";
-        if (/^\(\?i\)/.test(re)) { re = re.slice(4); flags = "i"; }
+        if (re.startsWith("(?i)")) { re = re.slice(4); flags = "i"; }
         if (new RegExp(re, flags).test(texto)) {
           r.detalle = `contiene patrón prohibido "${check.noContener}"`; resultados.push(r); continue;
         }
@@ -134,39 +185,41 @@ function diffCatalogo(previo, actual, umbral) {
 
   for (const [id, p] of Object.entries(act)) {
     const a = prev[id];
+    const nombre = p.nombre ?? p.name ?? "producto";
     if (!a) {
-      eventos.push({ tipo: "nuevo", severidad: "aviso", idProducto: id, nombre: p.nombre, detalle: "aparece en el catálogo por primera vez" });
+      eventos.push({ tipo: "nuevo", severidad: "aviso", idProducto: id, nombre, detalle: "aparece en el catálogo por primera vez" });
       continue;
     }
     const sViejo = a.stock ?? 0, sNuevo = p.stock ?? 0;
     if (sNuevo !== sViejo) {
       if (sViejo > 0 && sNuevo === 0) {
-        eventos.push({ tipo: "agotado", severidad: "aviso", idProducto: id, nombre: p.nombre, detalle: `stock ${sViejo} → 0 (agotado)` });
+        eventos.push({ tipo: "agotado", severidad: "aviso", idProducto: id, nombre, detalle: `stock ${sViejo} → 0 (agotado)` });
       } else if (sViejo === 0 && sNuevo > 0) {
-        eventos.push({ tipo: "repuesto", severidad: "info", idProducto: id, nombre: p.nombre, detalle: `stock 0 → ${sNuevo} (repuesto)` });
+        eventos.push({ tipo: "repuesto", severidad: sNuevo <= (umbral ?? 2) ? "aviso" : "info", idProducto: id, nombre, detalle: `stock 0 → ${sNuevo} (repuesto${sNuevo <= (umbral ?? 2) ? ", quedan pocos" : ""})` });
       } else if (sNuevo < sViejo && sNuevo <= (umbral ?? 2) && sNuevo > 0) {
-        eventos.push({ tipo: "stock_bajo", severidad: "aviso", idProducto: id, nombre: p.nombre, detalle: `stock ${sViejo} → ${sNuevo} (quedan ${sNuevo})` });
+        eventos.push({ tipo: "stock_bajo", severidad: "aviso", idProducto: id, nombre, detalle: `stock ${sViejo} → ${sNuevo} (quedan ${sNuevo})` });
       }
     }
-    const comVieja = `${a.comision ?? "?"} ${a.comisionMoneda ?? ""}`.trim();
-    const comNueva = `${p.comision ?? "?"} ${p.comisionMoneda ?? ""}`.trim();
-    if ((a.comision ?? null) !== (p.comision ?? null) || (a.comisionMoneda ?? null) !== (p.comisionMoneda ?? null)) {
-      eventos.push({ tipo: "comision", severidad: "aviso", idProducto: id, nombre: p.nombre, detalle: `comisión ${comVieja} → ${comNueva}` });
+    const comVieja = `${a.comision ?? "?"}`.trim();
+    const comNueva = `${p.comision ?? "?"}`.trim();
+    if ((a.comision ?? null) !== (p.comision ?? null)) {
+      eventos.push({ tipo: "comision", severidad: "aviso", idProducto: id, nombre, detalle: `comisión ${comVieja} → ${comNueva}` });
     }
     if ((a.precioActual ?? 0) !== (p.precioActual ?? 0)) {
-      eventos.push({ tipo: "precio", severidad: "info", idProducto: id, nombre: p.nombre, detalle: `precio ${a.precioActual ?? "?"} → ${p.precioActual ?? "?"}` });
+      eventos.push({ tipo: "precio", severidad: "info", idProducto: id, nombre, detalle: `precio ${a.precioActual ?? "?"} → ${p.precioActual ?? "?"}` });
     } else if ((a.precioOriginal ?? 0) !== (p.precioOriginal ?? 0)) {
-      eventos.push({ tipo: "precio", severidad: "info", idProducto: id, nombre: p.nombre, detalle: `precio original ${a.precioOriginal ?? "?"} → ${p.precioOriginal ?? "?"}` });
+      eventos.push({ tipo: "precio", severidad: "info", idProducto: id, nombre, detalle: `precio original ${a.precioOriginal ?? "?"} → ${p.precioOriginal ?? "?"}` });
     } else if ((a.descuento ?? 0) !== (p.descuento ?? 0)) {
-      eventos.push({ tipo: "precio", severidad: "info", idProducto: id, nombre: p.nombre, detalle: `descuento ${a.descuento ?? 0}% → ${p.descuento ?? 0}%` });
+      eventos.push({ tipo: "precio", severidad: "info", idProducto: id, nombre, detalle: `descuento ${a.descuento ?? 0}% → ${p.descuento ?? 0}%` });
     }
-    if ((a.nombre ?? null) !== (p.nombre ?? null) || (a.slug ?? null) !== (p.slug ?? null)) {
-      eventos.push({ tipo: "nombre", severidad: "info", idProducto: id, nombre: p.nombre, detalle: `nombre/slug cambiado (antes: ${a.nombre})` });
+    const nomViejo = a.nombre ?? a.name ?? null;
+    if ((nomViejo ?? null) !== (nombre ?? null)) {
+      eventos.push({ tipo: "nombre", severidad: "info", idProducto: id, nombre, detalle: `nombre cambiado (antes: ${nomViejo})` });
     }
   }
   for (const [id, a] of Object.entries(prev)) {
     if (!act[id]) {
-      eventos.push({ tipo: "eliminado", severidad: "aviso", idProducto: id, nombre: a.nombre, detalle: "ya no está en el catálogo" });
+      eventos.push({ tipo: "eliminado", severidad: "aviso", idProducto: id, nombre: a.nombre ?? "producto", detalle: "ya no está en el catálogo" });
     }
   }
   return eventos;
@@ -174,7 +227,6 @@ function diffCatalogo(previo, actual, umbral) {
 
 // ---------- TELEGRAM (opcional) ----------
 
-// Sin secrets no hace nada. Con secrets, avisa transiciones (no repite spam).
 async function telegramAvisar(texto, estado, cfg, noTelegram) {
   if (noTelegram || cfg.telegram?.habilitado === false) return;
   const token = process.env.TELEGRAM_BOT_TOKEN;
@@ -208,10 +260,13 @@ export async function main(rawArgs = process.argv.slice(2)) {
   const cfg = readJson(CONFIG_FILE, null);
   if (!cfg) { console.error(`No se pudo leer ${CONFIG_FILE}`); process.exit(1); }
 
-  const estado = readJson(ESTADO, { _meta: {}, web: {}, catalogo: null });
+  const estado = readJson(ESTADO, { _meta: {}, web: {}, catalogos: {} });
   const reporteAnterior = readJson(REPORTE, null);
   const historial = readJson(HISTORIAL, []);
-  const alertas = reporteAnterior?.alertas || [];
+  // Copia propia: pushAlerta() muta este array, y si fuera la MISMA referencia
+  // que reporteAnterior.alertas, la comparación de "sin cambios" siempre diría
+  // que nada cambió y las alertas nunca se persistirían.
+  const alertas = [...(reporteAnterior?.alertas || [])];
   const ts = now();
   const alertasNuevas = [];
 
@@ -248,85 +303,123 @@ export async function main(rawArgs = process.argv.slice(2)) {
   }
   const webOk = webResumen.every(r => r.ok);
 
-  // 2) CATÁLOGO
-  const catalogo = await cargarCatalogo(cfg);
-  let diff = [];
-  let huellaRepo = null;
-  if (catalogo.error) {
-    if (estado._meta.catalogoOk !== false) {
-      pushAlerta({ tipo: "catalogo_no_leido", severidad: "critica", titulo: "📦 No pude leer el catálogo del repo", detalle: catalogo.error });
-      await telegramAvisar(`🔴 VIGILANCIA: no pude leer productos.json (${catalogo.error}).`, estado, cfg, NO_TELEGRAM);
-    }
-    estado._meta.catalogoOk = false;
-  } else {
-    estado._meta.catalogoOk = true;
-    huellaRepo = huella(catalogo.productos);
-    if (!estado.catalogo) {
-      // Seed: primera vez. Sin alertas de diff, pero se destacan los recién agregados (48h).
-      const productos = {};
-      for (const p of catalogo.productos) productos[p.id] = snapshotProducto(p, cfg.catalogo?.campos);
-      estado.catalogo = { n: catalogo.productos.length, huella: huellaRepo, productos };
-      const corte = Date.now() - 48 * 3600000;
-      for (const p of catalogo.productos) {
-        const fa = p.fechaAgregado ? new Date(p.fechaAgregado).getTime() : 0;
-        if (fa > corte) {
-          const horas = Math.round((Date.now() - fa) / 3600000);
-          pushAlerta({ tipo: "nuevo", severidad: "info", idProducto: String(p.id), titulo: `🆕 ${p.nombre}`, detalle: `agregado hace ${horas < 1 ? "menos de 1 h" : horas + " h"}` });
-        }
+  // 2) CATÁLOGOS (stock vivo vigilado)
+  const catalogosCfg = cfg.catalogos || (cfg.catalogo ? [cfg.catalogo] : []);
+  estado.catalogos = estado.catalogos || {};
+  const resumenCatalogos = [];
+
+  for (const c of catalogosCfg) {
+    const nombre = c.nombre || c.repo || "catálogo";
+    const est = estado.catalogos[nombre] || {};
+    const res = await cargarCatalogo(c, est);
+
+    if (res.error) {
+      if (est.ok !== false) {
+        pushAlerta({ tipo: "catalogo_no_leido", severidad: "critica", catalogo: nombre, titulo: `📦 No pude leer ${nombre}`, detalle: res.error });
+        await telegramAvisar(`🔴 VIGILANCIA: no pude leer ${nombre} (${res.error}).`, estado, cfg, NO_TELEGRAM);
       }
-    } else {
-      diff = diffCatalogo(estado.catalogo, catalogo.productos, cfg.catalogo?.umbralStockBajo);
-      const productos = {};
-      for (const p of catalogo.productos) productos[p.id] = snapshotProducto(p, cfg.catalogo?.campos);
-      estado.catalogo = { n: catalogo.productos.length, huella: huellaRepo, productos };
-      const icono = { nuevo: "🆕", agotado: "🛑", repuesto: "🟢", stock_bajo: "⚠️", comision: "💸", precio: "🏷️", nombre: "✏️", eliminado: "🗑️" };
-      for (const ev of diff) {
-        const ic = icono[ev.tipo] || "ℹ️";
-        pushAlerta({ ...ev, titulo: `${ic} ${ev.nombre || "producto"}` });
-        const mandaTelegram = ev.severidad === "critica" || (!cfg.telegram?.soloCriticas && ev.severidad === "aviso");
-        if (mandaTelegram) await telegramAvisar(`${ic} TiendaMax: ${ev.nombre}\n${ev.detalle}`, estado, cfg, NO_TELEGRAM);
-      }
+      estado.catalogos[nombre] = { ...est, ok: false };
+      resumenCatalogos.push({ nombre, n: null, error: res.error });
+      continue;
     }
+    if (res.sinCambios) {
+      estado.catalogos[nombre] = { ...est, ok: true };
+      resumenCatalogos.push({ nombre, sinCambios: true });
+      continue;
+    }
+
+    const productos = res.productos;
+    const huellaCat = huella(productos);
+    if (!est.productos) {
+      // Seed: primera foto, sin alertas de diff.
+      const snapshot = {};
+      for (const p of productos) snapshot[p.id] = snapshotProducto(p, c.campos);
+      estado.catalogos[nombre] = { n: productos.length, huella: huellaCat, productos: snapshot, maxUpdated: res.maxUpdated ?? est.maxUpdated, ultimoFull: Date.now(), ok: true };
+      resumenCatalogos.push({ nombre, n: productos.length, agotados: cuentaAgotados(productos), stockBajo: cuentaStockBajo(productos, c.umbralStockBajo) });
+      console.log(`📸 ${nombre}: primera foto (${productos.length} productos)`);
+      continue;
+    }
+
+    const diff = diffCatalogo(est, productos, c.umbralStockBajo);
+    const snapshot = {};
+    for (const p of productos) snapshot[p.id] = snapshotProducto(p, c.campos);
+    estado.catalogos[nombre] = { n: productos.length, huella: huellaCat, productos: snapshot, maxUpdated: res.maxUpdated ?? est.maxUpdated, ultimoFull: Date.now(), ok: true };
+    const icono = { nuevo: "🆕", agotado: "🛑", repuesto: "🟢", stock_bajo: "⚠️", comision: "💸", precio: "🏷️", nombre: "✏️", eliminado: "🗑️" };
+    for (const ev of diff) {
+      const ic = icono[ev.tipo] || "ℹ️";
+      pushAlerta({ ...ev, catalogo: nombre, titulo: `${ic} ${ev.nombre || "producto"}` });
+      const mandaTelegram = ev.severidad === "critica" || (!cfg.telegram?.soloCriticas && ev.severidad === "aviso");
+      if (mandaTelegram) await telegramAvisar(`${ic} ${nombre}: ${ev.nombre}\n${ev.detalle}`, estado, cfg, NO_TELEGRAM);
+    }
+    resumenCatalogos.push({ nombre, n: productos.length, agotados: cuentaAgotados(productos), stockBajo: cuentaStockBajo(productos, c.umbralStockBajo), diff });
   }
 
-  // 3) DEPLOY DESACTUALIZADO: comparar productos.json publicado vs repo
+  // 3) DEPLOY DESACTUALIZADO: comparar /productos.json servido vs archivo del repo
   for (const r of webResumen) {
     const pub = r.resultados.find(c => c.catalogo)?.catalogo;
-    if (pub && huellaRepo) {
-      const hPub = huella(leerProductos(pub));
-      const prevDeploy = estado._meta.deploy || {};
-      if (hPub !== huellaRepo && prevDeploy.huella !== `${hPub}≠${huellaRepo}`) {
-        pushAlerta({ tipo: "deploy_desactualizado", severidad: "aviso", url: r.url, titulo: "📦 Web desactualizada", detalle: `${r.nombre} sirve un productos.json distinto al del repo (¿deploy pendiente?)` });
+    const sitio = cfg.web?.find(s => s.url === r.url);
+    if (pub && sitio?.deploy) {
+      const repoFile = await leerProductosRepo(sitio.deploy);
+      if (!repoFile.error) {
+        const hPub = huella(leerProductos(pub));
+        const hRepo = huella(repoFile.productos);
+        const key = `${r.url}::${sitio.deploy.repo || "local"}`;
+        const prevDeploy = estado._meta.deploy || {};
+        if (hPub !== hRepo && prevDeploy[key] !== `${hPub}≠${hRepo}`) {
+          pushAlerta({ tipo: "deploy_desactualizado", severidad: "aviso", url: r.url, titulo: "📦 Web desactualizada", detalle: `${r.nombre} sirve un productos.json distinto al del repo (¿deploy pendiente?)` });
+        }
+        estado._meta.deploy = { ...prevDeploy, [key]: hPub !== hRepo ? `${hPub}≠${hRepo}` : "ok" };
       }
-      estado._meta.deploy = { huella: hPub !== huellaRepo ? `${hPub}≠${huellaRepo}` : "ok" };
     }
   }
 
   // 4) REPORTE + HISTORIAL
-  const productos = catalogo.productos || [];
-  const agotados = catalogo.error ? null : productos.filter(p => (p.stock ?? 0) === 0).length;
-  const stockBajo = catalogo.error ? null : productos.filter(p => (p.stock ?? 0) > 0 && (p.stock ?? 0) <= (cfg.catalogo?.umbralStockBajo ?? 2)).length;
   const corte24 = Date.now() - 24 * 3600000;
   const a24 = alertas.filter(a => new Date(a.ts).getTime() > corte24);
+  const resumenCat = resumenCatalogos.map(c => {
+    if (c.error) return `${c.nombre}: no leído`;
+    if (c.sinCambios) return `${c.nombre}: sin cambios`;
+    const n24 = a24.filter(a => a.catalogo === c.nombre && a.tipo === "nuevo").length;
+    const ag24 = a24.filter(a => a.catalogo === c.nombre && a.tipo === "agotado").length;
+    const co24 = a24.filter(a => a.catalogo === c.nombre && a.tipo === "comision").length;
+    return `${c.nombre}: ${c.n} productos · ${c.agotados} agotados · 24h {${n24} nuevos, ${ag24} agotados, ${co24} comisiones}`;
+  }).join(" | ");
+
+  const catalogos = catalogosCfg.map(c => {
+    const nombre = c.nombre || c.repo || "catálogo";
+    const est = estado.catalogos[nombre] || {};
+    const n = est.n ?? null;
+    let agotados = null, stockBajo = null;
+    if (est.productos) {
+      const valores = Object.values(est.productos);
+      agotados = valores.filter(p => (p.stock ?? 0) === 0).length;
+      stockBajo = valores.filter(p => (p.stock ?? 0) > 0 && (p.stock ?? 0) <= (c.umbralStockBajo ?? 2)).length;
+    }
+    return {
+      nombre,
+      n,
+      agotados,
+      stockBajo,
+      conStock: n != null && agotados != null ? n - agotados : null,
+      nuevos24h: a24.filter(a => a.catalogo === nombre && a.tipo === "nuevo").length,
+      agotados24h: a24.filter(a => a.catalogo === nombre && a.tipo === "agotado").length,
+      comisiones24h: a24.filter(a => a.catalogo === nombre && a.tipo === "comision").length,
+    };
+  });
+
   const msMax = Math.max(...webResumen.map(r => r.ms));
   const resumen = webOk
-    ? `🟢 Web OK (${msMax} ms) · ${catalogo.error ? "catálogo no leído" : productos.length + " productos"} · ${alertasNuevas.length} novedad${alertasNuevas.length === 1 ? "" : "es"}`
+    ? `🟢 Web OK (${msMax} ms) · ${catalogos.map(c => `${c.nombre}: ${c.n ?? "?"} productos`).join(" · ")} · ${alertasNuevas.length} novedad${alertasNuevas.length === 1 ? "" : "es"}`
     : `🔴 Web caída · ${alertasNuevas.length} novedad${alertasNuevas.length === 1 ? "" : "es"}`;
 
   const reporte = {
-    sitio: cfg.sitio?.nombre || "TiendaMax",
+    sitio: cfg.sitio?.nombre || "Vigilancia",
     generadoPor: "vigilancia",
     ultimaRevision: ts,
     resumen,
     web: webResumen.map(r => ({ nombre: r.nombre, url: r.url, ok: r.ok, ms: r.ms, fallidos: r.fallidos })),
-    catalogo: {
-      n: catalogo.error ? null : productos.length,
-      agotados, stockBajo,
-      conStock: catalogo.error ? null : productos.length - (agotados ?? 0),
-      nuevos24h: a24.filter(a => a.tipo === "nuevo").length,
-      agotados24h: a24.filter(a => a.tipo === "agotado").length,
-      comisiones24h: a24.filter(a => a.tipo === "comision").length,
-    },
+    catalogos,
+    catalogo: catalogos[0] || null, // compat con versiones anteriores
     alertas,
     // El digest y las sugerencias los escribe vigia-digest.js; aquí solo se preservan.
     digest: reporteAnterior?.digest || null,
@@ -334,7 +427,8 @@ export async function main(rawArgs = process.argv.slice(2)) {
   };
 
   historial.unshift({
-    ts, webOk, ms: msMax, n: catalogo.error ? null : productos.length,
+    ts, webOk, ms: msMax,
+    n: catalogos.map(c => c.n ?? 0).reduce((a, b) => a + b, 0) || null,
     alertasNuevas: alertasNuevas.length,
     criticas: alertasNuevas.filter(a => a.severidad === "critica").length,
   });
@@ -344,7 +438,7 @@ export async function main(rawArgs = process.argv.slice(2)) {
   const sinCambios = reporteAnterior
     && mismo(reporte.alertas, reporteAnterior.alertas)
     && mismo(reporte.web, reporteAnterior.web)
-    && mismo(reporte.catalogo, reporteAnterior.catalogo);
+    && mismo(reporte.catalogos, reporteAnterior.catalogos);
   const ultimoWrite = estado._meta.ultimoWrite || 0;
   const tocaHeartbeat = Date.now() - ultimoWrite > (cfg.heartbeatMin || 60) * 60000;
 
@@ -360,12 +454,20 @@ export async function main(rawArgs = process.argv.slice(2)) {
   }
 
   console.log(resumen);
-  for (const a of alertasNuevas) console.log(`  ${a.severidad.toUpperCase()} · ${a.titulo} — ${a.detalle}`);
+  console.log(`  catálogos: ${resumenCat || "ninguno"}`);
+  for (const a of alertasNuevas) console.log(`  ${a.severidad.toUpperCase()} · ${a.catalogo ? "[" + a.catalogo + "] " : ""}${a.titulo} — ${a.detalle}`);
+}
+
+function cuentaAgotados(productos) {
+  return productos.filter(p => (p.stock ?? 0) === 0).length;
+}
+function cuentaStockBajo(productos, umbral) {
+  return productos.filter(p => (p.stock ?? 0) > 0 && (p.stock ?? 0) <= (umbral ?? 2)).length;
 }
 
 function snapshotProducto(p, campos) {
   const out = {};
-  for (const c of (campos || ["id", "nombre", "slug", "stock", "comision", "comisionMoneda", "precioActual", "precioOriginal", "descuento", "fechaAgregado"])) {
+  for (const c of (campos || ["id", "nombre", "name", "stock", "comision", "precioActual", "precioOriginal", "descuento"])) {
     out[c] = p[c] ?? null;
   }
   return out;
