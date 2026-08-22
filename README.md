@@ -60,6 +60,7 @@ En F0 tú haces de orquestador manual: lees el handoff y lanzas el siguiente. En
 | **impact** | Predice qué se rompería ANTES de tocar (contra memoria de bugs) | no |
 | **budget** | Vigila la cuota gratis y para tareas que la agotan | no |
 | **diarist** | Diario nocturno: qué pasó y qué mirar mañana | no |
+| **vigia** | Centinela de la tienda: vigila web y catálogo, te avisa y te sugiere mejoras | no |
 | **selfimprove** | Lee su propio historial y abre PRs para mejorar sus prompts | vía PR |
 | **defender** | Modo tribunal: defiende que la solución cumple, con evidencia | no |
 | **prosecutor** | Modo tribunal: su único mandato es demostrar que la solución falla | no |
@@ -79,8 +80,10 @@ Esto es lo que de verdad querías con "dos que debaten" — pero sin duplicar re
 
 > Necesitas al menos un proveedor configurado para que el tribunal funcione. La verificación cruzada (2º par de ojos) se enciende sola en cuanto haya **dos o más** proveedores configurados; con uno solo, el tribunal funciona igual pero sin ese segundo par de ojos.
 
-## Automatismos nocturnos y semanales
+## Automatismos continuos, nocturnos y semanales
 
+- **vigilancia.yml** (cada 10 min): el centinela — revisa la web de la tienda y diffea el catálogo. Sin IA. Ver la sección "🛰️ Vigilancia de la tienda".
+- **vigia-diario.yml** (cada mañana): digest + sugerencias del vigía en la app.
 - **nightly.yml** (cada noche): reloj de decaimiento (marca memorias obsoletas, baja confianza de lo viejo, regenera `index.json`) + diario en un Issue.
 - **self-improve.yml** (semanal): analiza el historial y, si detecta un patrón de fallo repetido, abre un PR proponiendo mejorar un prompt. Tú apruebas.
 - **memory/criterio/kros.md**: cómo trabajas y decides tú. El sistema lo aplica sin que se lo repitas (archivos completos, mobile-only, odio al `!important`, etc.).
@@ -89,7 +92,28 @@ Esto es lo que de verdad querías con "dos que debaten" — pero sin duplicar re
 
 ---
 
-## El sandbox efímero (probar "en vivo" sin riesgo)
+## 🛰️ Vigilancia (el centinela)
+
+> ⚙️ **Activación (importante):** los workflows viven en [`vigilancia/workflows/`](vigilancia/workflows/LEEME.md) y hay que copiarlos a `.github/workflows/` una sola vez — son 2 archivos, pasos exactos en [vigilancia/workflows/LEEME.md](vigilancia/workflows/LEEME.md).
+
+El centinela corre **cada 10 minutos** y diffea el **stock vivo de AXONTECH (axontech92.github.io/AXONTECH)** contra la foto anterior. Todo lo ves en la app, pestaña **Vigilancia** — sin tocar GitHub:
+
+| Qué vigila | Qué te avisa |
+|---|---|
+| **Stock de AXONTECH (axontech92)** — leído de su Supabase (la misma fuente viva que la página, con consulta barata de "¿hubo cambios?" para no gastar su cuota; si falla, cae al `productos.json` de su repo) | 🛑 **se agotó** (stock → 0) · 🟢 **reponen stock** (0 → N) · 🆕 **producto nuevo** · ⚠️ stock bajo · 💸 **cambio de comisión** · 🏷️ cambio de precio · 🗑️ eliminado |
+| **Webs publicadas** (tiendamax.org y axontech92.github.io/AXONTECH: portada, manifest, service worker, JSONs…) | 🔴 Caída / 🟢 restablecida / 🐢 lenta — con el detalle del check que falló |
+| **Deploy** (¿lo publicado coincide con el repo?) | 📦 Web desactualizada (deploy pendiente o fallido) |
+| **Vigía diario** (1 vez al día, con IA barata) | Resumen del día + 2-4 sugerencias accionables (venta, higiene, preventiva, sistema). Cada sugerencia tiene un botón **＋ Convertir en tarea**: crea el Issue con etiqueta `agent` y el equipo se pone a trabajar. |
+
+**Cómo funciona por dentro:**
+- `vigilancia.yml` corre **cada 10 min** (cambiable a `*/5`). Es 100% determinista, **no gasta IA**: HTTP + diff de JSON. Escribe `vigilancia/reporte.json`, que la app lee sola. Solo hace commit cuando hay cambios reales (o 1 heartbeat por hora) para no ensuciar el historial.
+- `vigia-diario.yml` corre cada mañana (12:00 UTC ≈ 8 AM Cuba): digiere los datos del día y deja resumen + sugerencias en la app. Única llamada a la IA de toda la vigilancia (tier cheap).
+- **Catálogos múltiples**: `vigilancia/config.json` acepta una lista `catalogos` (cada uno con su fuente: Supabase → repo → archivo). Añadir otro catálogo es copiar un bloque.
+- El badge 🔴 de la pestaña Vigilancia marca las alertas que aún no has visto; se limpia al abrirla.
+
+**Avisos por Telegram (opcional):** añade los secrets `TELEGRAM_BOT_TOKEN` y `TELEGRAM_CHAT_ID` en este repo y las caídas, agotados y reposiciones de AXONTECH te llegan al móvil al instante (máx. 4/h, solo transiciones, sin spam). Sin secrets, todo funciona igual dentro de la app.
+
+**Prueba local:** `node tests/vigilancia.test.mjs` levanta una web y un Supabase falsos y verifica los 18 escenarios (agotados, reposiciones, nuevos, comisiones, consulta barata "sin cambios", deploy, caídas, digest…).
 
 `sandbox.yml` levanta una **copia** de tu web dentro del runner de GitHub y el Breaker la ataca ahí. **Nunca toca producción.** Apunta Firebase a un proyecto de PRUEBA para que no roce tus datos reales.
 
@@ -136,10 +160,13 @@ Sin ese campo, `testing.run` responde honestamente "no configurado" en vez de in
 agents/       definición de cada agente (markdown declarativo)
 memory/       errors/ decisions/ facts/ lessons/ projects/ criterio/  (la base de conocimiento)
 tasks/        TASK-XXXX.json (estado, gates, handoffs)
+vigilancia/   config.json + reporte/estado/historial que el centinela escribe y la app lee
 src/          runner.js (ciclo por agente) · agentLoop.js (tool-calling) · tools.js (herramientas reales)
               memory.js · context.js · models.js · orchestrate.js · tribunal.js · resolve-project.js
-dashboard/    panel estático para GitHub Pages
-.github/workflows/  agent-run · orchestrator · tribunal · sandbox-breaker · nightly · self-improve · doctor · pages
+              vigilancia.js (centinela, sin IA) · vigia-digest.js (digest diario con IA)
+dashboard/    panel estático para GitHub Pages (pestaña Vigilancia incluida)
+.github/workflows/  vigilancia (10 min) · vigia-diario · agent-run · orchestrator · tribunal
+              sandbox-breaker · nightly · self-improve · doctor · pages
 ```
 
 ## El único criterio de éxito

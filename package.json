@@ -10,6 +10,8 @@
     "tribunal": "node src/tribunal.js",
     "decay": "node src/decay.js",
     "diary": "node src/diary.js",
+    "vigilancia": "node src/vigilancia.js",
+    "vigia": "node src/vigia-digest.js",
     "selfimprove": "node src/selfimprove.js",
     "doctor": "node src/doctor.js"
   }

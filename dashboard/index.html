@@ -141,6 +141,37 @@
     background-size:200% 100%;animation:sh 1.3s infinite}
   @keyframes sh{to{background-position:-200% 0}}
 
+  /* vigilancia */
+  nav button{position:relative}
+  .navbadge{position:absolute;top:2px;right:calc(50% - 26px);min-width:16px;height:16px;padding:0 4px;
+    border-radius:9px;background:var(--bad);color:#fff;font-size:10px;font-weight:700;
+    font-family:"JetBrains Mono",monospace;display:grid;place-items:center;line-height:1;
+    box-shadow:0 0 0 2px rgba(10,10,11,.9)}
+  .alert{border:1px solid var(--glass-line);border-radius:14px;padding:12px;margin:9px 0;
+    background:var(--glass);backdrop-filter:blur(6px);display:flex;gap:10px;align-items:flex-start}
+  .alert .ico{font-size:19px;line-height:1.25}
+  .alert .cuerpo{flex:1;min-width:0}
+  .alert .tit{font-size:13.5px;font-weight:600;line-height:1.35}
+  .alert .det{font-size:12px;color:var(--dim);margin-top:3px;line-height:1.45}
+  .alert .cuando{font-family:"JetBrains Mono",monospace;font-size:10px;color:var(--faint);margin-top:5px;letter-spacing:.3px}
+  .alert.sev-critica{border-color:rgba(244,99,78,.5);background:rgba(244,99,78,.07)}
+  .alert.sev-aviso{border-color:rgba(224,165,58,.42);background:rgba(224,165,58,.06)}
+  .alert.sev-info{border-color:var(--glass-line)}
+  .sugg{background:var(--glass);border:1px solid var(--glass-line);border-radius:16px;padding:14px;margin:9px 0}
+  .sugg .top{display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin-bottom:7px}
+  .sugg .tit{font-size:13.5px;font-weight:600;line-height:1.35;flex:1;min-width:150px}
+  .sugg .det{font-size:12.5px;color:var(--dim);line-height:1.5}
+  .sugg .meta{font-family:"JetBrains Mono",monospace;font-size:10px;padding:2px 8px;border-radius:10px;
+    background:rgba(255,255,255,.05);color:var(--dim)}
+  .sugg .meta.impacto-alto{background:rgba(244,99,78,.14);color:var(--bad)}
+  .sugg .meta.impacto-medio{background:rgba(224,165,58,.14);color:var(--warn)}
+  .sugg.done{opacity:.45}
+  .spark{display:flex;gap:2px;align-items:flex-end;height:34px;padding:2px 0}
+  .spark i{flex:1;min-width:2px;border-radius:2px;background:var(--ok);opacity:.85}
+  .spark i.bad{background:var(--bad)}
+  .spark i.old{opacity:.25}
+  .vignote{font-family:"JetBrains Mono",monospace;font-size:10.5px;color:var(--faint);margin-top:7px;letter-spacing:.3px}
+
   /* fab + install */
   .fab{position:fixed;left:50%;transform:translateX(-50%);
     bottom:calc(20px + env(safe-area-inset-bottom));
@@ -189,7 +220,9 @@
     <p id="heroSub">Tu equipo está listo. Esto es lo que hay ahora mismo.</p>
     <div class="pulse" id="pulse">
       <div class="chip accent"><div class="k">Tareas activas</div><div class="v" id="pActive">—</div><div class="s" id="pActiveS">cargando</div></div>
+      <div class="chip"><div class="k">Salud tienda</div><div class="v" id="pTienda">—</div><div class="s" id="pTiendaS">vigilancia</div></div>
       <div class="chip"><div class="k">Memoria</div><div class="v gold" id="pMem">—</div><div class="s" id="pMemS">conocimiento</div></div>
+      <div class="chip"><div class="k">Última revisión</div><div class="v gold" id="pRevisa">—</div><div class="s" id="pRevisaS">centinela</div></div>
       <div class="chip"><div class="k">Último veredicto</div><div class="v" id="pVerdict">—</div><div class="s" id="pVerdictS">tribunal</div></div>
       <div class="chip"><div class="k">Salud memoria</div><div class="v" id="pStale">—</div><div class="s" id="pStaleS">obsoletas</div></div>
     </div>
@@ -197,6 +230,7 @@
 
   <nav>
     <button class="on" data-tab="resumen" onclick="tab('resumen')">Resumen</button>
+    <button data-tab="vigilancia" onclick="tab('vigilancia')">Vigilancia<span class="navbadge" id="vigBadge" hidden></span></button>
     <button data-tab="tareas" onclick="tab('tareas')">Tareas</button>
     <button data-tab="memoria" onclick="tab('memoria')">Memoria</button>
     <button data-tab="equipo" onclick="tab('equipo')">Equipo</button>
@@ -205,6 +239,21 @@
   <section id="resumen">
     <div class="eyebrow">Diario · lo último</div>
     <div id="diario"></div>
+  </section>
+
+  <section id="vigilancia" hidden>
+    <div class="eyebrow">🛰️ Vigía · resumen del día</div>
+    <div id="vigDigest"></div>
+    <div class="eyebrow">Estado de la web</div>
+    <div id="vigWeb"></div>
+    <div class="eyebrow">Catálogos vigilados · stock</div>
+    <div id="vigCat"></div>
+    <div class="eyebrow">Alertas · lo que cambió</div>
+    <div id="vigAlerts"></div>
+    <div class="eyebrow">Sugerencias para mejorar</div>
+    <div id="vigSug"></div>
+    <div class="eyebrow">Historial de revisiones</div>
+    <div id="vigHist"></div>
   </section>
 
   <section id="tareas" hidden>
@@ -290,6 +339,7 @@ const TEAM=[
  ]],
  ["Guardianes",[
    ["🔒","security","Vigila secretos y vulnerabilidades. Defensivo."],
+   ["🛰️","vigia","Centinela: vigila tu tienda cada 10 min y te avisa."],
    ["🔮","impact","Predice qué se rompería antes de tocar."],
    ["💰","budget","Cuida tu cuota gratis y frena lo que la agota."],
  ]],
@@ -302,9 +352,15 @@ const TEAM=[
 
 function tab(name){
   for(const el of document.querySelectorAll("nav button")) el.classList.toggle("on",el.dataset.tab===name);
-  for(const id of ["resumen","tareas","memoria","equipo"]){
+  for(const id of ["resumen","vigilancia","tareas","memoria","equipo"]){
     const s=document.getElementById(id); s.hidden=id!==name;
     if(id===name){ s.style.animation="none"; requestAnimationFrame(()=>s.style.animation=""); }
+  }
+  if(name==="vigilancia"){
+    // Marcar alertas como vistas (el badge desaparece hasta la próxima novedad).
+    const maxTs=VIG?Math.max(0,...(VIG.alertas||[]).map(a=>new Date(a.ts).getTime())):Date.now();
+    localStorage.setItem("vigSeen",maxTs||Date.now());
+    const b=document.getElementById("vigBadge"); b.hidden=true;
   }
 }
 
@@ -381,6 +437,145 @@ async function loadTasks(){
   }catch(e){ box.innerHTML=errBox(e); }
 }
 
+// ── VIGILANCIA: el centinela de la tienda ──────────────────────────
+let VIG=null;
+
+function haceStr(ts){
+  const m=Math.max(0,Math.round((Date.now()-new Date(ts).getTime())/60000));
+  if(m<1) return "ahora mismo";
+  if(m<60) return "hace "+m+" min";
+  const h=Math.floor(m/60);
+  if(h<24) return "hace "+h+" h";
+  return "hace "+Math.floor(h/24)+" d";
+}
+
+async function loadVigilancia(){
+  const alertsBox=document.getElementById("vigAlerts");
+  try{
+    const cb="?cb="+Date.now();
+    const [rep,hist,lastRun]=await Promise.all([
+      jget(raw("vigilancia/reporte.json")+cb).catch(()=>null),
+      jget(raw("vigilancia/historial.json")+cb).catch(()=>null),
+      jget(api("actions/workflows/vigilancia.yml/runs?per_page=1"),true)
+        .then(j=>(j.workflow_runs&&j.workflow_runs[0])||null).catch(()=>null),
+    ]);
+    if(!rep) throw new Error("sin reporte");
+    VIG=rep;
+
+    // chips del hero
+    const webOk=(rep.web||[]).every(w=>w.ok);
+    const pT=document.getElementById("pTienda");
+    pT.textContent=webOk?"🟢":"🔴";
+    pT.className="v "+(webOk?"ok":"bad");
+    document.getElementById("pTiendaS").textContent=webOk
+      ?Math.max(0,...(rep.web||[]).map(w=>w.ms||0))+" ms"
+      :"algo no responde";
+    const ult=lastRun?.updated_at||rep.ultimaRevision;
+    const ultMin=Math.max(0,Math.round((Date.now()-new Date(ult).getTime())/60000));
+    document.getElementById("pRevisa").textContent=ultMin<60?ultMin+"m":Math.round(ultMin/60)+"h";
+    document.getElementById("pRevisaS").textContent=haceStr(ult);
+
+    // badge de novedades no vistas
+    const seen=Number(localStorage.getItem("vigSeen")||0);
+    const nuevas=(rep.alertas||[]).filter(a=>new Date(a.ts).getTime()>seen&&a.severidad!=="info").length;
+    const b=document.getElementById("vigBadge");
+    b.hidden=nuevas===0; b.textContent=nuevas>9?"9+":nuevas;
+
+    // digest del vigía
+    document.getElementById("vigDigest").innerHTML=(rep.digest&&rep.digest.resumen)
+      ?`<div class="card"><span class="id">🛰️ vigía · ${new Date(rep.digest.fecha).toLocaleDateString("es",{day:"numeric",month:"short"})}</span><div class="diary" style="margin-top:6px">${esc(rep.digest.resumen)}</div><div class="vignote">${haceStr(rep.digest.fecha)} · ${rep.digest.conIA?"con IA":"modo local"}</div></div>`
+      :emptyMsg("El vigía aún no ha escrito","Cada mañana deja aquí su resumen y sus propuestas.");
+
+    // estado de la web
+    document.getElementById("vigWeb").innerHTML=(rep.web||[]).map(w=>`
+      <div class="card ${w.ok?"":"hot"}">
+        <span class="conf">${w.ok?(w.ms??"—")+" ms":"CAÍDA"}</span>
+        <span class="id">${w.ok?"🟢":"🔴"} ${esc(w.nombre)}</span>
+        ${w.fallidos&&w.fallidos.length?`<div style="color:var(--bad);font-size:12px;margin-top:6px;line-height:1.5">${esc(w.fallidos.join(" · "))}</div>`:""}
+      </div>`).join("");
+
+    // catálogos vigilados (stock)
+    const cats=(rep.catalogos||[]).length?rep.catalogos:(rep.catalogo?[rep.catalogo]:[]);
+    document.getElementById("vigCat").innerHTML=cats.length?cats.map(c=>`
+      <div class="card">
+        <span class="id">📦 ${esc(c.nombre)}</span>
+        <div class="pulse" style="margin:12px 0 4px">
+          <div class="chip"><div class="k">Productos</div><div class="v gold">${c.n??"—"}</div><div class="s">en catálogo</div></div>
+          <div class="chip"><div class="k">Con stock</div><div class="v ${(c.conStock??0)>0?"ok":"bad"}">${c.conStock??"—"}</div><div class="s">disponibles</div></div>
+          <div class="chip"><div class="k">Agotados</div><div class="v ${(c.agotados??0)>0?"bad":"ok"}">${c.agotados??"—"}</div><div class="s">stock 0</div></div>
+          <div class="chip"><div class="k">Stock bajo</div><div class="v ${(c.stockBajo??0)>0?"warn":"ok"}">${c.stockBajo??"—"}</div><div class="s">por agotarse</div></div>
+        </div>
+        <div class="vignote">24 h: ${c.nuevos24h??0} nuevos · ${c.agotados24h??0} agotados · ${c.comisiones24h??0} comisiones cambiadas</div>
+      </div>`).join(""):emptyMsg("Sin catálogos vigilados","Configura vigilancia/config.json con el repo o Supabase a vigilar.");
+
+    // alertas
+    const alertas=(rep.alertas||[]).slice(0,40);
+    alertsBox.innerHTML=alertas.length?alertas.map(a=>{
+      const sp=(a.titulo||"").split(" ");
+      const ico=sp.shift()||"ℹ️";
+      return `<div class="alert sev-${a.severidad||"info"}">
+        <div class="ico">${ico}</div>
+        <div class="cuerpo"><div class="tit">${esc(sp.join(" "))}${a.catalogo?` <span class="meta" style="margin-left:6px">${esc(a.catalogo)}</span>`:""}</div>
+        <div class="det">${esc(a.detalle||"")}</div>
+        <div class="cuando">${haceStr(a.ts)}</div></div></div>`;
+    }).join(""):emptyMsg("Sin alertas","El centinela vigila cada 10 min: productos nuevos, agotados, comisiones y caídas aparecerán aquí.");
+
+    // sugerencias
+    const desc=JSON.parse(localStorage.getItem("vigDesc")||"{}");
+    const sugs=rep.sugerencias||[];
+    document.getElementById("vigSug").innerHTML=sugs.length?sugs.map((s,i)=>`
+      <div class="sugg ${desc[s.titulo]?"done":""}">
+        <div class="top"><span class="tit">💡 ${esc(s.titulo)}</span>
+          <span class="meta impacto-${esc(s.impacto||"medio")}">${esc(s.impacto||"medio")}</span>
+          <span class="meta">${esc(s.categoria||"")}</span></div>
+        <div class="det">${esc(s.detalle||"")}</div>
+        <div class="row-actions">
+          <button class="btn coral" onclick="crearTareaDeSugerencia(${i})">＋ Convertir en tarea</button>
+          <button class="btn ghost" onclick="descartarSugerencia(${i})">✕ Descartar</button>
+        </div>
+      </div>`).join(""):emptyMsg("Sin sugerencias todavía","El vigía dejará aquí propuestas concretas cada mañana.");
+
+    // historial (línea de salud)
+    const runs=(hist||[]).slice(0,48).reverse();
+    document.getElementById("vigHist").innerHTML=runs.length?`
+      <div class="card">
+        <div class="spark">${runs.map((h,i)=>`<i class="${h.webOk?"":"bad"}${i<runs.length-3?" old":""}" title="${h.ts.slice(0,16).replace("T"," ")} · ${h.webOk?"OK":"CAÍDA"} · ${h.ms} ms"></i>`).join("")}</div>
+        <div class="vignote">${runs.length} revisiones · ${haceStr(runs[runs.length-1].ts)} · ${runs[runs.length-1].webOk?"🟢":"🔴"} la última</div>
+      </div>`:emptyMsg("Sin historial aún","Las revisiones del centinela pintarán aquí la línea de salud.");
+
+  }catch(e){
+    alertsBox.innerHTML=emptyMsg("El centinela aún no ha corrido","En la primera revisión automática (cada 10 min) verás aquí la salud de las páginas, el stock vigilado, las alertas y las sugerencias.");
+    document.getElementById("vigWeb").innerHTML="";
+    document.getElementById("vigCat").innerHTML="";
+    document.getElementById("vigDigest").innerHTML="";
+    document.getElementById("vigSug").innerHTML="";
+    document.getElementById("vigHist").innerHTML="";
+  }
+}
+
+function crearTareaDeSugerencia(i){
+  const s=(VIG?.sugerencias||[])[i]; if(!s) return;
+  const title=s.titulo;
+  const body=(s.detalle||"")+`\n\n— sugerencia del vigía · impacto ${s.impacto||"medio"} · categoría ${s.categoria||"sistema"}`;
+  const url=`https://github.com/${cfg.owner}/${cfg.repo}/issues/new?labels=agent&title=${encodeURIComponent(title)}&body=${encodeURIComponent(body)}`;
+  if(cfg.token){
+    fetch(api("issues"),{method:"POST",headers:{...authHeaders(),"Content-Type":"application/json"},
+      body:JSON.stringify({title,body,labels:["agent"]})})
+      .then(r=>{ if(!r.ok) throw new Error(r.status); alert("✅ Tarea creada. El equipo la recoge en unos minutos."); })
+      .catch(()=>window.open(url,"_blank"));
+    return;
+  }
+  window.open(url,"_blank");
+}
+
+function descartarSugerencia(i){
+  const s=(VIG?.sugerencias||[])[i]; if(!s) return;
+  const d=JSON.parse(localStorage.getItem("vigDesc")||"{}");
+  d[s.titulo]=1;
+  localStorage.setItem("vigDesc",JSON.stringify(d));
+  loadVigilancia();
+}
+
 async function loadDiary(){
   const box=document.getElementById("diario");
   try{
@@ -441,7 +636,7 @@ function saveCfg(){
   localStorage.setItem("brainCfg",JSON.stringify(cfg)); cfgDlg.close(); refresh();
 }
 function fillCfg(){cfgOwner.value=cfg.owner;cfgRepo.value=cfg.repo;cfgBranch.value=cfg.branch;cfgToken.value=cfg.token;}
-function refresh(){ loadDiary(); loadTasks(); loadMemory(); }
+function refresh(){ loadDiary(); loadTasks(); loadMemory(); loadVigilancia(); }
 
 // PWA
 let deferred;

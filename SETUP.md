@@ -82,6 +82,17 @@ Es la señal de que un Issue es una tarea para el equipo.
 
 ---
 
+## 8. (Opcional) Avisos de la tienda por Telegram
+El centinela (pestaña **Vigilancia** de la app) vigila la tienda cada 10 min desde que subes el repo: caídas, productos nuevos, agotados, cambios de comisión. Si además quieres que te llegue al móvil **al instante**:
+1. Crea un bot con [@BotFather](https://t.me/BotFather) en Telegram y copia el token.
+2. Consigue tu `chat_id` (p. ej. habla con el bot y usa `https://api.telegram.org/bot<TOKEN>/getUpdates`).
+3. En este repo: **Settings → Secrets and variables → Actions → New repository secret**. Crea `TELEGRAM_BOT_TOKEN` y `TELEGRAM_CHAT_ID`.
+4. Listo: caídas, agotados y novedades te llegan como mensaje (máx. 4 por hora, solo transiciones, sin spam).
+
+Sin estos secrets todo funciona igual dentro de la app. La frecuencia, las URLs y los umbrales se cambian en `vigilancia/config.json`.
+
+---
+
 ## ✅ Prueba que todo quedó bien
 1. En la app, toca **＋ Nueva tarea**, escribe algo simple y créala.
 2. Se abre GitHub con el Issue prellenado (etiqueta `agent`) → pulsa **Submit**.

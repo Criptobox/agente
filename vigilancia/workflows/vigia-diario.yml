@@ -1,0 +1,48 @@
+name: vigia-diario
+# 🛰️ VIGÍA DIARIO: una vez al día, digiere los datos del centinela y deja en la
+# app (pestaña Vigilancia) un resumen + sugerencias accionables para kros.
+# Único paso de la vigilancia que usa IA (tier cheap, una llamada al día).
+on:
+  schedule:
+    # 12:00 UTC ≈ 8:00 AM hora Cuba: las sugerencias están listas por la mañana.
+    - cron: '0 12 * * *'
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+
+jobs:
+  digerir:
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with: { node-version: '20' }
+
+      - name: Digest + sugerencias del día
+        env:
+          GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          MISTRAL_API_KEY: ${{ secrets.MISTRAL_API_KEY }}
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+          ZAI_API_KEY: ${{ secrets.ZAI_API_KEY }}
+        run: node src/vigia-digest.js
+
+      - name: Guardar en git
+        run: |
+          git config user.name  "vigia"
+          git config user.email "agent@bot.local"
+          git add vigilancia/
+          git diff --staged --quiet && { echo "sin cambios"; exit 0; }
+          git commit -m "vigia: digest $(date -u +%F)"
+          BRANCH=$(git rev-parse --abbrev-ref HEAD)
+          for i in 1 2 3 4; do
+            git push origin "HEAD:$BRANCH" && exit 0
+            echo "push rechazado (intento $i), sincronizando con origin/$BRANCH..."
+            git fetch origin "$BRANCH"
+            git rebase "origin/$BRANCH" || { echo "conflicto al rebasar, aborto"; git rebase --abort; exit 1; }
+            sleep $((i * 2))
+          done
+          echo "no se pudo publicar tras varios intentos"; exit 1
