@@ -39,3 +39,16 @@ Prompt maestro guardado en prompt-replicar-diseno-tiendamax.md.
 
 ## Companion
 Vale de Venta (criptobox.github.io/Vale-de-venta-Tiendamax) y un bot de stock en Telegram.
+
+## Vigilancia continua (vive en el repo agente)
+- `vigilancia.yml` cada 10 min: HTTP checks de tiendamax.org (+ Pages) y diff de
+  `productos.json` de ESTE repo contra la foto anterior guardada en `vigilancia/estado.json`.
+  Sin IA. Escribe `vigilancia/reporte.json` que la app lee (pestaña Vigilancia).
+- Detecta: caída/restablecimiento/lentitud de la web, deploy desactualizado (huella de
+  productos.json servido ≠ repo), productos nuevos, agotados, repuestos, stock bajo,
+  cambios de comisión y de precio.
+- `vigia-diario.yml` cada mañana: digest + sugerencias (única llamada de IA, tier cheap).
+- Telegram opcional con secrets TELEGRAM_BOT_TOKEN / TELEGRAM_CHAT_ID en el repo agente.
+- TiendaMax YA tiene en su propio repo: web-health-agent.yml (30 min, avisa por Telegram),
+  nightly-agent.yml (reporte diario agente-reporte.json) y smoke-web.yml. No duplicarlos:
+  el centinela del repo agente es el diff/alertas en la app; los de la tienda, sus jobs.

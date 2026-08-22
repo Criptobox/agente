@@ -1,0 +1,49 @@
+{
+  "//": "Configuración del centinela (vigilancia). Edita esto sin tocar código. Los tiempos van en ms.",
+  "web": [
+    {
+      "nombre": "TiendaMax (dominio propio)",
+      "url": "https://tiendamax.org",
+      "primario": true,
+      "tiempoMaximoMs": 6000,
+      "checks": [
+        { "path": "/", "debeContener": "TiendaMax", "noContener": "(?i)404 Not Found|page not found|en mantenimiento|error interno|página no encontrada" },
+        { "path": "/productos.json", "tipo": "json", "esCatalogo": true },
+        { "path": "/productos-lite.json", "tipo": "json" },
+        { "path": "/manifest.json", "tipo": "json" },
+        { "path": "/sw.js", "debeContener": "SKIP_WAITING" },
+        { "path": "/sitemap.xml", "debeContener": "<urlset" },
+        { "path": "/robots.txt" },
+        { "path": "/logo.webp", "soloEstado": true }
+      ]
+    },
+    {
+      "nombre": "TiendaMax (GitHub Pages)",
+      "url": "https://criptobox.github.io/TiendaMax",
+      "tiempoMaximoMs": 6000,
+      "checks": [
+        { "path": "/", "debeContener": "TiendaMax" },
+        { "path": "/productos.json", "tipo": "json" }
+      ]
+    }
+  ],
+  "catalogo": {
+    "repo": "Criptobox/TiendaMax",
+    "rama": "main",
+    "archivo": "productos.json",
+    "campos": ["id", "nombre", "slug", "stock", "comision", "comisionMoneda", "precioActual", "precioOriginal", "descuento", "fechaAgregado"],
+    "umbralStockBajo": 2
+  },
+  "telegram": {
+    "habilitado": false,
+    "soloCriticas": true,
+    "maxPorHora": 4
+  },
+  "historial": {
+    "mantenerRuns": 576
+  },
+  "alertas": {
+    "mantenerEnReporte": 120
+  },
+  "heartbeatMin": 60
+}

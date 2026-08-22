@@ -2,7 +2,7 @@
 // Estrategia pensada para 3G lento (igual que en TiendaMax):
 //  - Shell de la app (html/manifest/iconos): cache-first, carga instantánea offline.
 //  - Datos de GitHub (JSON/API): network-first con caída al último cacheado.
-const VERSION = "brain-v1";
+const VERSION = "brain-v2";
 const SHELL = [
   "./",
   "./index.html",
@@ -48,6 +48,14 @@ self.addEventListener("fetch", (e) => {
   }
 
   if (isData) {
+    // Datos del centinela (/vigilancia/): SIEMPRE red, nunca se cachean —
+    // una alerta de hace 10 minutos no sirve. Si no hay señal, lo último visto.
+    if (url.pathname.includes("/vigilancia/")) {
+      e.respondWith(
+        fetch(e.request).catch(() => caches.match(e.request, { ignoreSearch: true }))
+      );
+      return;
+    }
     // network-first: datos frescos si hay señal; si no, lo último que vimos.
     e.respondWith(
       fetch(e.request)

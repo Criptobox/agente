@@ -1,0 +1,52 @@
+name: vigilancia
+# 🛰️ CENTINELA DE LA TIENDA. Corre cada 10 minutos (puedes bajarlo a */5).
+# Sin IA: revisa la web publicada y diffea el catálogo del repo de la tienda.
+# Escribe vigilancia/reporte.json, que la app (pestaña Vigilancia) lee sola.
+# Solo hace commit cuando hay cambios reales o pasa 1 h sin novedad (heartbeat),
+# así el historial del repo no se llena de commits basura.
+on:
+  schedule:
+    - cron: '*/10 * * * *'
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+
+concurrency:
+  group: vigilancia
+  cancel-in-progress: false
+
+jobs:
+  vigilar:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with: { node-version: '20' }
+
+      - name: Revisar web + catálogo y comparar con la última foto
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # Opcionales: avisos por Telegram en transiciones críticas (sin ellos, solo app).
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+        run: node src/vigilancia.js
+
+      - name: Guardar cambios en git (solo si los hay)
+        run: |
+          git config user.name  "vigilancia"
+          git config user.email "agent@bot.local"
+          git add vigilancia/
+          git diff --staged --quiet && { echo "sin cambios"; exit 0; }
+          git commit -m "vigilancia: $(date -u '+%F %H:%M') UTC"
+          BRANCH=$(git rev-parse --abbrev-ref HEAD)
+          for i in 1 2 3 4; do
+            git push origin "HEAD:$BRANCH" && exit 0
+            echo "push rechazado (intento $i), sincronizando con origin/$BRANCH..."
+            git fetch origin "$BRANCH"
+            git rebase "origin/$BRANCH" || { echo "conflicto al rebasar, aborto"; git rebase --abort; exit 1; }
+            sleep $((i * 2))
+          done
+          echo "no se pudo publicar tras varios intentos"; exit 1

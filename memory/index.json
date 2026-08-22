@@ -158,5 +158,13 @@
     "confidence": null,
     "stale": false,
     "project": null
+  },
+  {
+    "id": "FACT-101",
+    "type": "fact",
+    "title": "La vigilancia continua vive en el repo agente: src/vigilancia.js diffea productos.json y escribe vigilancia/reporte.json (pestaña Vigilancia del dashboard).",
+    "confidence": 95,
+    "stale": false,
+    "project": "tiendamax"
   }
 ]
