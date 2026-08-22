@@ -94,6 +94,8 @@ Esto es lo que de verdad querías con "dos que debaten" — pero sin duplicar re
 
 ## 🛰️ Vigilancia (el centinela)
 
+> ⚙️ **Activación (importante):** los workflows viven en [`vigilancia/workflows/`](vigilancia/workflows/LEEME.md) y hay que copiarlos a `.github/workflows/` una sola vez — son 2 archivos, pasos exactos en [vigilancia/workflows/LEEME.md](vigilancia/workflows/LEEME.md).
+
 El centinela corre **cada 10 minutos** y diffea el **stock vivo de AXONTECH (axontech92.github.io/AXONTECH)** contra la foto anterior. Todo lo ves en la app, pestaña **Vigilancia** — sin tocar GitHub:
 
 | Qué vigila | Qué te avisa |
